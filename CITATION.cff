@@ -1,0 +1,36 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "MECH-CLASS: Mechanism classification for programmable genome-writing enzymes"
+version: "0.5.4"
+date-released: "2026-05-25"
+authors:
+  - family-names: Ahmed
+    given-names: Anees
+    email: ahmedaneesm@gmail.com
+    affiliation: "VIT University, Vellore"
+repository-code: "https://github.com/ahmedanees-m/mech-class"
+url: "https://mech-class.readthedocs.io"
+license: MIT
+keywords:
+  - "genome engineering"
+  - "mechanism classification"
+  - "protein language models"
+  - "SaProt"
+  - "ESM-2"
+  - "CRISPR"
+  - "IS110"
+  - "bridge recombinase"
+  - "composite catalytic architecture"
+  - "bioinformatics"
+abstract: >
+  MECH-CLASS classifies DNA-modifying enzymes by catalytic mechanism from protein
+  sequence and predicted structure. It predicts three Tier-A classes
+  (DSB_NUCLEASE, DSB_FREE_TRANSEST_RECOMBINASE, TRANSPOSASE) and nine Tier-B
+  sub-classes, with explicit handling of composite catalytic architectures (IS110
+  bridge-recombinase family: RuvC-fold + serine-recombinase). Labels are
+  constructed from M-CSA, Rhea, UniProt feature lines, InterPro clan inheritance,
+  CRISPRCasdb, and TnPedia via weighted evidence aggregation. Features combine
+  ESM-2 150M sequence embeddings (GENOME-ATLAS reuse), SaProt 650M structure-aware
+  embeddings, Pfam domain binary features, and active-site geometry. Part of the
+  PEN-STACK computational infrastructure for non-destructive genome engineering.
