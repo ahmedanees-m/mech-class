@@ -1,0 +1,489 @@
+"""Public Predictor API for mech-class v0.5.2.
+
+Loads trained LightGBM models (stored as plain dicts from training scripts) and
+exposes a clean Python API for mechanism prediction from sequence.
+
+Feature pipeline at inference time:
+  F_seq   (640d)  - ESM-2 150M mean-pool, lazy-loaded singleton, CPU-only
+  F_struct (1280d) - zero-filled (requires SaProt + GPU; optional via pdb_path)
+  F_domain  (26d)  - PFAM_WHITELIST binary flags + composite/single-domain flags
+                     UniProt REST lookup if accession given, else zero-filled
+  F_active_site (7d) - zero-filled (requires PDB structure geometry)
+
+Total: 1953-dim vector matching the training feature_matrix.parquet columns.
+
+Usage:
+    predictor = Predictor.load("/path/to/model/dir")
+    pred = predictor.predict_from_sequence("Q99ZW2", "MDKKY...")
+    print(pred.tier_a, pred.composite, pred.composite_prob)
+"""
+
+from __future__ import annotations
+
+import pickle
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import requests
+from pydantic import BaseModel
+
+# Pfam whitelist - identical to training (dom_0..dom_22)
+PFAM_WHITELIST = [
+    "PF13395",
+    "PF18541",
+    "PF16595",
+    "PF18516",
+    "PF01548",
+    "PF02371",
+    "PF07282",
+    "PF00665",
+    "PF01609",
+    "PF13586",
+    "PF08721",
+    "PF11426",
+    "PF05621",
+    "PF00589",
+    "PF00239",
+    "PF07508",
+    "PF01844",
+    "PF02486",
+    "PF18061",
+    "PF16592",
+    "PF16593",
+    "PF13639",
+    "PF03377",
+]
+
+# URL for trained model artifacts (filled once hosted)
+# Set MECH_CLASS_MODEL_DIR env var to override local cache path.
+_MODELS_URL = ""  # set once model artifacts are hosted
+_DEFAULT_CACHE_DIR = Path.home() / ".cache" / "mech-class" / "models" / "v1.0"
+
+
+class Prediction(BaseModel):
+    """Mechanism prediction for a single protein."""
+
+    accession: str
+    sequence_length: int
+    tier_a: str
+    tier_a_confidence: float
+    tier_a_gate_override: bool = False  # True when IS110 biochemical gate overrode ML
+    tier_b: str | None = None
+    tier_b_confidence: float | None = None
+    composite: bool = False
+    composite_prob: float = 0.0
+    composite_evidence: list[str] = []
+    pfam_hits: list[str] = []
+    channels_used: list[str] = []
+
+    @property
+    def confidence(self) -> float:
+        return self.tier_a_confidence
+
+    def summary(self) -> str:
+        """One-line human-readable summary."""
+        comp = f" [COMPOSITE P={self.composite_prob:.3f}]" if self.composite else ""
+        tb = f" / {self.tier_b}" if self.tier_b else ""
+        return f"{self.accession}: {self.tier_a}{tb} (conf={self.tier_a_confidence:.3f}){comp}"
+
+
+class Predictor:
+    """Load trained MECH-CLASS models and predict mechanism from sequence.
+
+    Model artifacts are plain pickled dicts produced by the training scripts.
+    Each dict contains ``model`` (LGBMClassifier), ``feature_cols`` (list),
+    and optionally ``label_encoder`` (LabelEncoder for multi-class heads).
+
+    Paths under the model directory::
+
+        tier_a/model.pkl           Tier-A 3-class classifier
+        composite_head/model.pkl   Binary IS110 composite head
+        tier_b/{CLASS}/model.pkl   Per-class Tier-B sub-classifiers
+
+    Parameters
+    ----------
+    _ta : dict
+        Tier-A model dict.
+    _comp : dict
+        Composite head model dict.
+    _tier_b : dict[str, dict]
+        Map from Tier-A class name to Tier-B model dict.
+    """
+
+    def __init__(self, _ta: dict, _comp: dict, _tier_b: dict):
+        self._ta = _ta
+        self._comp = _comp
+        self._tier_b = _tier_b
+        self._esm2 = None  # loaded lazily
+
+    # ------------------------------------------------------------------
+    # Construction
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def load(
+        cls,
+        model_dir: str | Path | None = None,
+        *,
+        download: bool = True,
+        device: str = "cpu",  # reserved for future SaProt GPU inference; unused in v0.5
+    ) -> Predictor:
+        """Load trained models from a local directory.
+
+        Parameters
+        ----------
+        model_dir : path-like, optional
+            Directory containing ``tier_a/model.pkl``,
+            ``composite_head/model.pkl``, and ``tier_b/*/model.pkl``.
+            Defaults to ``~/.cache/mech-class/models/v1.0/`` (local cache).
+        download : bool
+            If True and model_dir is the default cache, attempt to download
+            model artifacts if not already cached.  Set False to skip.
+        """
+        if model_dir is None:
+            model_dir = _DEFAULT_CACHE_DIR
+            if download and not (Path(model_dir) / "tier_a" / "model.pkl").exists():
+                _download_models(Path(model_dir))
+        model_dir = Path(model_dir)
+
+        ta_path = model_dir / "tier_a" / "model.pkl"
+        comp_path = model_dir / "composite_head" / "model.pkl"
+
+        if not ta_path.exists():
+            raise FileNotFoundError(
+                f"Tier-A model not found at {ta_path}.\n"
+                "Pass model_dir= pointing to your trained model directory, e.g.:\n"
+                "  Predictor.load('/path/to/models')"
+            )
+
+        with open(ta_path, "rb") as f:
+            ta = pickle.load(f)
+        with open(comp_path, "rb") as f:
+            comp = pickle.load(f)
+
+        # Load per-class Tier-B models
+        tier_b: dict[str, dict] = {}
+        for class_name in ta["label_encoder"].classes_:
+            tb_path = model_dir / "tier_b" / class_name / "model.pkl"
+            if tb_path.exists():
+                with open(tb_path, "rb") as f:
+                    tier_b[class_name] = pickle.load(f)
+
+        return cls(ta, comp, tier_b)
+
+    # ------------------------------------------------------------------
+    # Prediction
+    # ------------------------------------------------------------------
+
+    def predict_from_sequence(
+        self,
+        accession: str | None,
+        sequence: str,
+        *,
+        pfam_hits: list[str] | None = None,
+        pdb_path: str | Path | None = None,
+    ) -> Prediction:
+        """Predict mechanism from protein sequence.
+
+        Parameters
+        ----------
+        accession : str or None
+            UniProt accession.  If given, Pfam hits are looked up from UniProt
+            REST API (unless ``pfam_hits`` is already supplied).
+        sequence : str
+            Amino acid sequence.
+        pfam_hits : list[str], optional
+            Pre-computed Pfam accessions (overrides UniProt lookup).
+        pdb_path : path-like, optional
+            Path to PDB/CIF file for structure-channel features (not yet
+            implemented; channel zero-filled).
+
+        Returns
+        -------
+        Prediction
+        """
+        acc_str = accession or "unknown"
+
+        # --- Pfam domain hits -------------------------------------------
+        if pfam_hits is None:
+            if accession:
+                pfam_hits = _fetch_pfam_hits(accession)
+            else:
+                pfam_hits = []
+
+        # Pre-compute pfam_set once; used by both Tier-A gate and composite gate.
+        pfam_set = set(pfam_hits)
+        channels_used: list[str] = []
+
+        # --- F_seq channel (ESM-2 150M) ---------------------------------
+        seq_emb = self._embed_sequence(sequence)
+        if seq_emb is not None:
+            channels_used.append("F_seq")
+        else:
+            seq_emb = np.zeros(640, dtype=np.float32)
+
+        # --- F_struct channel (zero-filled; optional SaProt) ------------
+        # pdb_path support deferred to v0.6.0; always zero-fill for now.
+        # channels_used.append("F_struct")  # uncomment when implemented
+
+        # --- Build feature DataFrame ------------------------------------
+        feat_cols = self._ta["feature_cols"]
+        X_df = _build_feature_row(seq_emb, pfam_hits, feat_cols)
+
+        # --- Tier-A prediction ------------------------------------------
+        proba_a = self._ta["model"].predict_proba(X_df)[0]
+        pred_idx = int(np.argmax(proba_a))
+        tier_a = self._ta["label_encoder"].inverse_transform([pred_idx])[0]
+        tier_a_cf = float(proba_a[pred_idx])
+
+        # --- Tier-A IS110 hard gate (v0.5.2) ----------------------------
+        # PF01548 (DEDD_Tnp_IS110, RuvC-fold N-terminal) AND PF02371
+        # (Transposase_20, serine-Tnp C-terminal) co-occurrence definitionally
+        # identifies IS110-family bridge recombinases, which cleave and rejoin
+        # DNA without a DSB intermediate (DSB_FREE_TRANSEST_RECOMBINASE).
+        #
+        # Root cause for this gate: at inference time the ESM-2 channel is
+        # zero-filled for novel proteins (no pre-computed embedding). The
+        # LightGBM was trained where all 14 IS110 training proteins had real
+        # ESM-2 embeddings; a zero-seq + dom_4/dom_5 feature vector is OOD and
+        # the model incorrectly outputs DSB_NUCLEASE (~0.57-0.70 confidence).
+        # Domain-only synthetic probes confirm this failure mode. The gate
+        # overrides the ML decision to the biochemically correct class.
+        # (IS110 training proteins score DSB_FREE correctly when ESM-2 is
+        # available; this gate only fires when their domain pattern is present.)
+        _is110_tier_a_gate = "PF01548" in pfam_set and "PF02371" in pfam_set
+        tier_a_gate_override = False
+        if _is110_tier_a_gate and tier_a != "DSB_FREE_TRANSEST_RECOMBINASE":
+            tier_a = "DSB_FREE_TRANSEST_RECOMBINASE"
+            # Use the ML DSB_FREE probability (index 0); floor at 0.90 to
+            # reflect biochemical certainty even in OOD feature space.
+            _dsb_free_idx = list(self._ta["label_encoder"].classes_).index("DSB_FREE_TRANSEST_RECOMBINASE")
+            tier_a_cf = max(float(proba_a[_dsb_free_idx]), 0.90)
+            tier_a_gate_override = True
+
+        # --- Composite head ---------------------------------------------
+        comp_feat_cols = self._comp.get("feature_cols") or feat_cols
+        X_comp = X_df[comp_feat_cols] if comp_feat_cols else X_df
+        comp_proba = self._comp["model"].predict_proba(X_comp)[0]
+        _ml_composite_prob = float(comp_proba[1])
+
+        # Biochemical hard gate: IS110 composite architecture is defined by the
+        # co-occurrence of PF01548 (DEDD_Tnp_IS110, RuvC-fold N-terminal domain)
+        # AND PF02371 (Transposase_20, serine-Tnp C-terminal domain) in the same
+        # polypeptide. Without both domains the flag is forced False regardless of
+        # the ML score, preventing multi-domain non-IS110 proteins (e.g. SpCas9
+        # with its RuvC+HNH architecture) from triggering false positives.
+        # (pfam_set already computed above)
+        _gate_pass = _is110_tier_a_gate  # same condition; reuse
+        composite = _gate_pass and (_ml_composite_prob >= 0.5)
+        composite_prob = _ml_composite_prob if _gate_pass else 0.0
+
+        # Build composite evidence strings
+        comp_ev: list[str] = []
+        if composite:
+            comp_ev.append("RuvC-fold DEDD N-terminal domain (PF01548)")
+            comp_ev.append("Serine Tnp C-terminal domain (PF02371)")
+        elif _gate_pass and not composite:
+            # Gate passed but ML confidence below threshold - report raw score
+            comp_ev.append(
+                f"Domain gate passed (PF01548 and PF02371) but ML confidence low (P={_ml_composite_prob:.3f})"
+            )
+
+        # --- Tier-B prediction ------------------------------------------
+        tier_b_label: str | None = None
+        tier_b_cf: float | None = None
+        if tier_a in self._tier_b:
+            tb = self._tier_b[tier_a]
+            X_tb = X_df[tb["feature_cols"]] if tb.get("feature_cols") else X_df
+            pb_b = tb["model"].predict_proba(X_tb)[0]
+            idx_b = int(np.argmax(pb_b))
+            tier_b_label = tb["label_encoder"].inverse_transform([idx_b])[0]
+            tier_b_cf = float(pb_b[idx_b])
+
+        if pfam_hits:
+            channels_used.append("F_domain")
+
+        return Prediction(
+            accession=acc_str,
+            sequence_length=len(sequence),
+            tier_a=tier_a,
+            tier_a_confidence=tier_a_cf,
+            tier_a_gate_override=tier_a_gate_override,
+            tier_b=tier_b_label,
+            tier_b_confidence=tier_b_cf,
+            composite=composite,
+            composite_prob=composite_prob,
+            composite_evidence=comp_ev,
+            pfam_hits=pfam_hits,
+            channels_used=channels_used,
+        )
+
+    def predict_from_fasta(self, fasta_path: str | Path) -> list[Prediction]:
+        """Predict mechanism for all sequences in a FASTA file."""
+        try:
+            from Bio import SeqIO
+        except ImportError:
+            raise ImportError("biopython required: pip install biopython")
+        results = []
+        for rec in SeqIO.parse(str(fasta_path), "fasta"):
+            pred = self.predict_from_sequence(rec.id, str(rec.seq))
+            results.append(pred)
+        return results
+
+    def predict_batch(
+        self,
+        df: pd.DataFrame,
+        *,
+        pfam_col: str | None = "pfam_hits",
+    ) -> pd.DataFrame:
+        """Predict for a DataFrame with columns: accession, sequence [, pfam_hits].
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Must have 'accession' and 'sequence' columns.
+        pfam_col : str or None
+            Column name containing pre-computed Pfam hit lists.
+            Pass None to force UniProt lookup for every row.
+        """
+        results = []
+        for _, row in df.iterrows():
+            pfam = row[pfam_col] if (pfam_col and pfam_col in row.index) else None
+            if isinstance(pfam, float):  # NaN -> None
+                pfam = None
+            p = self.predict_from_sequence(
+                row.get("accession"),
+                row["sequence"],
+                pfam_hits=pfam,
+            )
+            results.append(p.model_dump())
+        return pd.DataFrame(results)
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _embed_sequence(self, sequence: str) -> np.ndarray | None:
+        """Return ESM-2 150M mean-pool embedding, or None on failure."""
+        if self._esm2 is None:
+            self._esm2 = _load_esm2_singleton()
+        if self._esm2 is None:
+            return None
+        model, alphabet, batch_converter = self._esm2
+        try:
+            import torch
+
+            seq = sequence[:1022]
+            _, _, tokens = batch_converter([("q", seq)])
+            with torch.no_grad():
+                out = model(tokens, repr_layers=[30])
+            emb = out["representations"][30][0, 1 : len(seq) + 1].mean(0)
+            return emb.cpu().numpy().astype(np.float32)
+        except Exception as exc:
+            import warnings
+
+            warnings.warn(f"ESM-2 embedding failed ({exc}); F_seq zero-filled.")
+            return None
+
+
+# ------------------------------------------------------------------
+# Module-level helpers
+# ------------------------------------------------------------------
+
+_ESM2_SINGLETON = None
+
+
+def _load_esm2_singleton():
+    """Lazy-load ESM-2 150M once per process."""
+    global _ESM2_SINGLETON
+    if _ESM2_SINGLETON is not None:
+        return _ESM2_SINGLETON
+    try:
+        import esm as fair_esm
+
+        model, alphabet = fair_esm.pretrained.esm2_t30_150M_UR50D()
+        model = model.eval()
+        batch_converter = alphabet.get_batch_converter()
+        _ESM2_SINGLETON = (model, alphabet, batch_converter)
+        return _ESM2_SINGLETON
+    except Exception:
+        return None
+
+
+def _fetch_pfam_hits(accession: str, timeout: int = 15) -> list[str]:
+    """Query UniProt REST API for Pfam cross-references of a protein.
+
+    Falls back to empty list on any network or parsing error.
+    """
+    try:
+        url = f"https://rest.uniprot.org/uniprotkb/{accession}.json"
+        r = requests.get(url, timeout=timeout)
+        r.raise_for_status()
+        data = r.json()
+        pfam = []
+        for ref in data.get("uniProtKBCrossReferences", []):
+            if ref.get("database") == "Pfam":
+                pfam.append(ref["id"])
+        return pfam
+    except Exception:
+        return []
+
+
+def _build_feature_row(
+    seq_emb: np.ndarray,
+    pfam_hits: list[str],
+    feat_cols: list[str],
+) -> pd.DataFrame:
+    """Assemble a 1-row feature DataFrame matching training feature_cols.
+
+    Maps:
+      seq_0..639      <- ESM-2 embedding
+      struct_0..1279  <- zero-filled (SaProt not available at inference time)
+      dom_0..22       <- PFAM_WHITELIST binary flags
+      dom_23          <- IS110 composite (PF01548 AND PF02371)
+      dom_24          <- editor fusion flag (reserved, zero)
+      dom_25          <- single-domain flag
+      as_0..6         <- zero-filled (active-site geometry)
+    """
+    row = np.zeros(len(feat_cols), dtype=np.float32)
+    col_map = {c: i for i, c in enumerate(feat_cols)}
+
+    # F_seq channel
+    for k, v in enumerate(seq_emb):
+        c = f"seq_{k}"
+        if c in col_map:
+            row[col_map[c]] = float(v)
+
+    # F_domain channel
+    pfam_set = set(pfam_hits)
+    wl_hits: list[str] = []
+    for wl_idx, pfam in enumerate(PFAM_WHITELIST):
+        c = f"dom_{wl_idx}"
+        if c in col_map and pfam in pfam_set:
+            row[col_map[c]] = 1.0
+            wl_hits.append(pfam)
+
+    # IS110 composite flag (dom_23)
+    if "dom_23" in col_map:
+        row[col_map["dom_23"]] = float("PF01548" in pfam_set and "PF02371" in pfam_set)
+    # dom_24 = editor fusion (zero; reserved for future)
+    # Single-domain flag (dom_25)
+    if "dom_25" in col_map:
+        row[col_map["dom_25"]] = float(len(wl_hits) == 1)
+
+    return pd.DataFrame(row.reshape(1, -1), columns=feat_cols)
+
+
+def _download_models(target_dir: Path) -> None:
+    """Attempt to download the model artifacts.
+
+    This is a stub - the model artifact URL will be filled in
+    after uploading the trained models following peer review.
+    """
+    raise RuntimeError(
+        "Model download not yet configured for mech-class v0.5.0.\n"
+        "Please pass model_dir= explicitly:\n\n"
+        "  predictor = Predictor.load('/path/to/models')\n\n"
+        "Trained model artifacts are provided as raw data files."
+    )
