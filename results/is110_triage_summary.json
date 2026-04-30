@@ -1,0 +1,12 @@
+{
+  "stage1_total": 31871,
+  "is110_reclassified_count": 31870,
+  "is110_reclassified_frac": 0.999968623513539,
+  "composite_flagged": 31870,
+  "tier_a_distribution": {
+    "DSB_NUCLEASE": 31870,
+    "DSB_FREE_TRANSEST_RECOMBINASE": 1
+  },
+  "feature_channels": "domain_only (seq/struct zero-filled -- high-throughput triage)",
+  "uniprot_query": "(xref:pfam-PF01548) AND (xref:pfam-PF02371)"
+}

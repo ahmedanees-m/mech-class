@@ -1,0 +1,17 @@
+{
+  "total_candidates": 2463,
+  "source_counts": {
+    "PF18297_all_kingdoms": 1559,
+    "PF07282_eukaryota": 904
+  },
+  "length_stats": {
+    "min": 200,
+    "max": 1496,
+    "mean": 441.4
+  },
+  "queries": [
+    "PF07282_eukaryota",
+    "PF18297_all_kingdoms"
+  ],
+  "training_excluded": 572
+}

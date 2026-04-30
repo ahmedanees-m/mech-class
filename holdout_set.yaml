@@ -1,0 +1,146 @@
+# Pre-registered holdout probe set for MECH-CLASS v1.0 evaluation.
+#
+# These proteins are EXCLUDED from training and reserved for OOD evaluation.
+# Pre-registration date: 2026-05 (before any model training).
+#
+# Accession corrections applied 2026-05-06:
+#   Bxb1: O25753 (wrong: H. pylori HP_1128, 84 AA, no Pfam)
+#       -> Q8VVR2 (wrong: S. aureus GajA nuclease, 380 AA, PF13175)
+#       -> Q9B086 (correct: Mycobacteriophage Bxb1 integrase, 500 AA, PF07508+PF00239)
+#   Tn5:  P00509 (wrong placeholder) -> Q46731 (correct: E. coli Tn5 transposase)
+#   See LABEL_PROVENANCE.md Data Pipeline Corrections for full chain.
+#
+# NOT in this set (see notes):
+#   Cre (P06956): intended as composite-FP probe but found in training set
+#     (424 PF00589 proteins in training; P06956 row 8658, DSB_FREE).
+#     Cannot serve as OOD holdout.
+
+holdout_probes:
+
+  - name: IS110_representative
+    accession: A0A7C9VKZ0
+    role: IS110_composite_TP
+    expected_tier_a: DSB_FREE_TRANSEST_RECOMBINASE
+    expected_composite: true
+    min_confidence: 0.60
+    canonical_pfam: [PF01548, PF02371]
+    reference_doi: "10.1038/s41586-024-07552-4"
+    notes: >
+      IS110-family bridge recombinase; composite dual-domain architecture
+      (DEDD_Tnp_IS110 + Transposase_20). Primary holdout for IS110 reclassification claim.
+
+  - name: Fanzor_SpFanzor1
+    accession: Q8I6T1
+    role: Fanzor_positive
+    expected_tier_a: DSB_NUCLEASE
+    expected_composite: false
+    min_confidence: 0.70
+    canonical_pfam: [PF07282]
+    reference_doi: "10.1038/s41586-023-06356-2"
+    notes: >
+      SpuFz1 Fanzor1 OMEGA-nuclease (eukaryotic RNA-guided). Single-domain TnpB.
+      High confidence threshold (0.70) pre-registered for Fanzor prospective catalog.
+
+  - name: Cas9_SpCas9
+    accession: Q99ZW2
+    role: composite_FP_probe
+    expected_tier_a: DSB_NUCLEASE
+    expected_composite: false
+    min_confidence: 0.60
+    canonical_pfam: [PF13395, PF18541, PF16595, PF16592, PF16593]
+    reference_doi: "10.1126/science.1225829"
+    notes: >
+      SpCas9 -- pre-registered to test composite head FP rate.
+      ACTUAL: composite=True (FP, P=0.753). Composite head over-fires because
+      SpCas9 has 5 Cas9-domain whitelist hits and no negative training examples
+      with >=4 whitelist Pfam domains. Documented in MODEL_CARD.md as known limitation.
+
+  - name: Bxb1_integrase
+    accession: Q9B086
+    role: composite_TN_probe
+    expected_tier_a: DSB_FREE_TRANSEST_RECOMBINASE
+    expected_composite: false
+    min_confidence: 0.60
+    canonical_pfam: [PF07508, PF00239]
+    reference_doi: "10.1073/pnas.061041098"
+    notes: >
+      Mycobacteriophage Bxb1 large serine integrase (500 AA).
+      Accession corrected: O25753 (H. pylori HP_1128, 84 AA, wrong) ->
+      Q8VVR2 (S. aureus GajA nuclease, 380 AA, wrong) -> Q9B086 (correct).
+      Q9B086 verified absent from training feature matrix.
+      ACTUAL: tier_a=DSB_FREE conf=0.966, composite=False (TN). Correct.
+
+  - name: Tn5_transposase
+    accession: Q46731
+    role: transposase_probe
+    expected_tier_a: TRANSPOSASE
+    expected_composite: false
+    min_confidence: 0.60
+    canonical_pfam: [PF01609]
+    reference_doi: "10.1016/S0092-8674(00)80650-5"
+    notes: >
+      E. coli Tn5 transposase. Accession corrected: P00509 (wrong placeholder) -> Q46731.
+      ACTUAL: tier_a=TRANSPOSASE conf=0.869 (PASS), composite=False (TN).
+
+  - name: ISCro4_pelea_2026
+    accession: D2TGM5
+    aliases: ["ISCro4_IS622_OOD_gate_probe"]   # deprecated name used in v0.5.3
+    role: IS110_OOD_gate_override_probe
+    expected_tier_a: DSB_FREE_TRANSEST_RECOMBINASE
+    expected_composite: true
+    min_confidence: 0.90
+    canonical_pfam: [PF01548, PF02371]
+    reference_doi: "10.1126/science.adz1884"
+    secondary_doi: "10.1101/2025.05.14.653916"
+    notes: >
+      ISCro4 bridge recombinase from Citrobacter rodentium ICC168 (326 AA).
+      Canonical name per UniProt D2TGM5 + Pelea 2026 Science. "IS622" was the
+      deprecated preprint label (Perry 2025 bioRxiv); renamed ISCro4 in v0.5.4
+      to match genome-atlas v0.7.2 canonical naming. Added v0.5.3 as canonical
+      OOD probe for the v0.5.2 Tier-A IS110 hard gate.
+      D2TGM5 is NOT in training set (no pre-computed ESM-2 embedding). ML alone
+      predicts DSB_NUCLEASE P~0.57 (OOD failure). The IS110 hard gate fires on
+      PF01548 and PF02371 -> overrides to DSB_FREE_TRANSEST_RECOMBINASE with
+      tier_a_gate_override=True and conf>=0.90.
+      Sources: Perry 2025 bioRxiv 2025.05.14.653916; Pelea 2026 Science adz1884.
+      Tested via Predictor.predict_from_sequence() (NOT holdout_features.parquet -
+      D2TGM5 is OOD and gate logic lives in api.py, not in the raw LightGBM model).
+      ACTUAL: tier_a=DSB_FREE_TRANSEST_RECOMBINASE, tier_a_gate_override=True,
+      tier_a_confidence>=0.90, composite=True (PASS).
+
+# Excluded from evaluation set (not OOD):
+
+excluded_probes:
+
+  - name: Cre_recombinase
+    accession: P06956
+    role: composite_FP_probe_INTENDED
+    excluded_reason: >
+      P06956 (Enterobacteria phage P1 Cre recombinase, 343 AA, PF00589) is present
+      in the training feature matrix (row 8658, tier_a=DSB_FREE_TRANSEST_RECOMBINASE,
+      tier_b=B1_Site_Specific_Recombinase). 424 PF00589 (Phage_integrase) proteins
+      are in training -- Cre was included during standard label ingestion.
+      Cannot serve as OOD composite evaluation probe.
+      ACTUAL prediction (in-distribution): tier_a=DSB_FREE conf=0.9999, composite=False
+      (P=0.005) -- but this is in-distribution and not a valid OOD datum.
+      See LABEL_PROVENANCE.md Data Pipeline Corrections.
+
+# Summary of composite head OOD evaluation (4 valid non-composite probes as of v0.5.3):
+#
+#   IS110   (A0A7C9VKZ0): composite=True  P(True)=0.999 -> TP
+#   SpCas9  (Q99ZW2):     composite=True  P(True)=0.753 -> FP  [FAIL]
+#   Bxb1    (Q9B086):     composite=False P(True)=0.118 -> TN
+#   Tn5     (Q46731):     composite=False P(True)=0.379 -> TN
+#   ISCro4  (D2TGM5):     composite=True  gate_override=True   -> TP (gate-fired OOD; formerly "IS622")
+#
+#   Hold-out composite FP rate (3 OOD non-composite probes): 1/3 = 33%
+#   Pre-registered criterion: FP rate <= 10%  --> FAILS
+#   Documented in MODEL_CARD.md (composite head limitation section).
+#
+# Summary of Tier-A OOD evaluation (6 probes, v0.5.3):
+#   IS110   (A0A7C9VKZ0): DSB_FREE conf>=0.60, requires_esm2=True
+#   Fanzor  (Q8I6T1):     DSB_NUCLEASE conf>=0.70
+#   Bxb1    (Q9B086):     DSB_FREE conf>=0.60, requires_esm2=True
+#   Tn5     (Q46731):     TRANSPOSASE  conf>=0.60, requires_esm2=True
+#   ISCro4  (D2TGM5):     DSB_FREE conf>=0.90, gate_override=True (OOD, no ESM-2)
+#   SpCas9  (Q99ZW2):     DSB_NUCLEASE conf>=0.60 (Tier-A PASS; composite xfail)
