@@ -19,7 +19,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-import duckdb
 import pandas as pd
 import yaml
 from importlib.resources import files as pkg_files
@@ -193,6 +192,7 @@ def load_atlas_protein_accessions(
     duckdb_path: str = "/data/graphs/atlas.duckdb",
 ) -> set[str]:
     """Return all UniProt accessions in the ATLAS (to restrict aggregation)."""
+    import duckdb  # optional atlas dependency — lazy import
     con = duckdb.connect(duckdb_path, read_only=True)
     accs = set(con.execute("SELECT accession FROM nodes_protein").fetchdf()["accession"])
     con.close()

@@ -48,8 +48,9 @@ htmlcov/
 *.pt
 *.bin
 *.safetensors
-models/
+# data/models/ contains trained binary artifacts — distributed via Zenodo
 /data/models/
+# NOTE: mech_class/models/ is a Python package and must NOT be ignored
 /data/embeddings/
 /data/graphs/
 
