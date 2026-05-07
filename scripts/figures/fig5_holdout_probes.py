@@ -1,4 +1,4 @@
-"""Figure 5 — Holdout probe validation summary.
+"""Figure 5 ? Holdout probe validation summary.
 
 Shows confidence scores for 5 pre-registered probe proteins vs thresholds.
 
@@ -63,7 +63,7 @@ def plot() -> None:
     ax.set_xticklabels(labels, fontsize=9)
     ax.set_ylabel("Tier-A confidence score", fontsize=10)
     ax.set_ylim(0, 1.1)
-    ax.set_title("Holdout Probe Validation — Confidence vs Pre-registered Thresholds",
+    ax.set_title("Holdout Probe Validation ? Confidence vs Pre-registered Thresholds",
                  fontsize=11)
 
     pass_patch = mpatches.Patch = plt.matplotlib.patches.Patch

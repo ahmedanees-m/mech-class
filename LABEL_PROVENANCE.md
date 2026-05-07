@@ -123,9 +123,49 @@ The following proteins are excluded from training labels and reserved for evalua
 |---|---|---|
 | SpCas9 | Q99ZW2 | Pre-registered hold-out (excluded by 08_ingest_curator_decisions.py) |
 | Tn5 | Q46731 | Pre-registered hold-out (excluded by 08_ingest_curator_decisions.py) |
-| Bxb1 | O25753 | Pre-registered hold-out (not in ATLAS — no exclusion needed) |
+| Bxb1 | **Q9B086** | Pre-registered hold-out — accession corrected (see §Data Pipeline Corrections below). Q9B086 not in ATLAS; no exclusion step needed. |
+| Cre | **P06956** | Intended composite-FP evaluation probe per §0.5, but **P06956 is in the training feature matrix** (DSB_FREE / B1_Site_Specific_Recombinase). Cannot serve as OOD holdout. See §Data Pipeline Corrections. |
 | IS621 | — | Not in ATLAS (foundational_systems.yaml proteins: []) |
 | SpuFz1 | — | Not in ATLAS (foundational_systems.yaml proteins: []) |
+
+## Data Pipeline Corrections
+
+The following accession errors were discovered during hold-out evaluation (2026-05-06) and corrected prior to submission.
+
+### Bxb1 integrase accession chain error
+
+`foundational_systems.yaml` had `Bxb1_integrase: proteins: []` — no accession was ever
+registered for this system. Two downstream scripts each supplied a hand-written accession
+without UniProt validation:
+
+| Script | Accession used | Actual protein | Error |
+|---|---|---|---|
+| `scripts/14_assemble_feature_matrix.py` HOLDOUT_SET | O25753 | *Helicobacter pylori* HP_1128 (84 AA, uncharacterised) | Wrong organism, wrong function, no Pfam |
+| `scripts/figures/fig5_holdout_probes.py` | Q8VVR2 | *Staphylococcus aureus* GajA nuclease (380 AA, PF13175) | Wrong organism, nuclease not recombinase |
+
+**Correction:** `Q9B086` (*Mycobacterium* phage Bxb1 integrase, 500 AA, PF07508+PF00239) is
+the canonical Bxb1 hold-out probe. It is absent from the training feature matrix (verified).
+The pre-registration intent was to test a large serine integrase; the accession was a
+placeholder. This correction is documented as an accession fix, not a post-hoc probe change.
+`foundational_systems.yaml` updated to `Bxb1_integrase: proteins: [Q9B086]`.
+
+### Cre recombinase — proteins: [] corrected; P06956 found in training
+
+`foundational_systems.yaml` had `Cre_recombinase: proteins: []`. The canonical probe is
+`P06956` (*Enterobacteria* phage P1 Cre recombinase, 343 AA, PF00589 Phage_integrase).
+`foundational_systems.yaml` updated to `Cre_recombinase: proteins: [P06956]`.
+
+**However:** P06956 is present in the training feature matrix (row 8658, labeled
+DSB_FREE_TRANSEST_RECOMBINASE / B1_Site_Specific_Recombinase). The PF00589
+(Phage_integrase) family is the single largest class in the training set (424 proteins),
+so Cre was included during standard label ingestion. P06956 was never excluded from training
+by `08_ingest_curator_decisions.py` (only Q99ZW2 and Q46731 are explicitly excluded there;
+O25753 was absent from ATLAS entirely).
+
+**Consequence:** Cre cannot serve as an OOD composite evaluation probe. The pre-registered
+composite FP criterion (FP rate ≤ 10% on Cas9, Bxb1, Cre, Tn5 holdouts) can only be
+evaluated on 3 OOD probes: SpCas9 (FP), Bxb1/Q9B086 (TN), Tn5 (TN). FP rate = 1/3 = 33%.
+The criterion fails. See MODEL_CARD.md §Composite head hold-out evaluation for full discussion.
 
 ## Version history
 
@@ -134,3 +174,4 @@ The following proteins are excluded from training labels and reserved for evalua
 | v0.1 | 2026-05 | Initial label set; n_sources counted rows not databases (9,500 labels — WRONG) |
 | v0.2 | 2026-05 | Added HIGH_AUTHORITY_SOURCES gate; n_sources = unique DB families (569 labels) |
 | v0.3 | 2026-05 | IS110-only composite (PF07282 reverted); hold-out exclusion added; IS110 proteins added to Foundational (572 labels, Gate 1 PASS) |
+| v0.4 | 2026-05-06 | Accession corrections: Bxb1 O25753→Q9B086; Cre proteins:[]→[P06956]. foundational_systems.yaml updated. Hold-out table corrected (5/5 PASS Tier-A). P06956 found in training — Cre cannot be used as OOD composite probe. Composite FP rate = 1/3 = 33% on 3 OOD probes (fails ≤ 10% gate). |

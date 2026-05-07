@@ -82,40 +82,41 @@ plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-addopts = "-ra --cov=mech_class --cov-report=term-missing --cov-report=xml --strict-markers"
+addopts = "-ra --cov=mech_class --cov-report=term-missing --cov-report=xml --cov-fail-under=60 --strict-markers"
 testpaths = ["tests"]
 
 [tool.coverage.run]
 source = ["mech_class"]
 omit = [
-    # Evidence scrapers — require live external APIs or licensed databases
-    "mech_class/evidence/mcsa.py",
-    "mech_class/evidence/rhea.py",
-    "mech_class/evidence/interpro.py",
-    "mech_class/evidence/tnpedia.py",
-    "mech_class/evidence/crisprcasdb.py",
-    "mech_class/evidence/uniprot_features.py",
-    "mech_class/evidence/pfam_whitelist.py",
-    "mech_class/evidence/atlas_domain.py",
-    "mech_class/evidence/foundational.py",
-    # CLI (tested manually; hard to unit test click apps without click.testing)
+    # evidence scrapers — network I/O, not unit-testable without mocks
+    "mech_class/evidence/scrapers/mcsa.py",
+    "mech_class/evidence/scrapers/rhea.py",
+    "mech_class/evidence/scrapers/interpro.py",
+    "mech_class/evidence/scrapers/tnpedia.py",
+    "mech_class/evidence/scrapers/crisprcasdb.py",
+    "mech_class/evidence/scrapers/uniprot_features.py",
+    "mech_class/evidence/scrapers/pfam_whitelist.py",
+    "mech_class/evidence/scrapers/atlas_domain.py",
+    "mech_class/evidence/scrapers/foundational.py",
+    # CLI entry point
     "mech_class/cli.py",
-    # Data loader (requires /data/ volume; tested implicitly via regression tests on VM)
+    # data loader (thin wrapper)
     "mech_class/data/loader.py",
-    # Structure and active-site channels (require SaProt/PDB; always zero-filled at CI)
+    # structural channels — require GPU/Foldseek
     "mech_class/features/struct.py",
     "mech_class/features/active_site.py",
-    # MLP classifier (supplementary; not used in published model)
+    # MLP baseline — excluded from main paper
     "mech_class/models/mlp_clf.py",
-    # pLDDT utility (requires structural data)
-    "mech_class/utils/plddt.py",
+    # pLDDT helper
+    "mech_class/features/plddt.py",
 ]
 
 [tool.coverage.report]
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
+    "if TYPE_CHECKING:",
     "raise NotImplementedError",
     "if __name__ == .__main__.:",
-    "if TYPE_CHECKING:",
+    "@(abc\\.)?abstractmethod",
 ]

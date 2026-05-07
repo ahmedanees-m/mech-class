@@ -1,10 +1,10 @@
-"""Step 13 — Train Tier-A LightGBM classifier (Week 5).
+"""Step 13 -- Train Tier-A LightGBM classifier (Week 5).
 
 Trains a 3-class LightGBM classifier:
   DSB_NUCLEASE | DSB_FREE_TRANSEST_RECOMBINASE | TRANSPOSASE
 
-Uses stratified 5-fold CV with per-fold 1000× bootstrap CI (95%, 2.5th pct).
-Gate 2 pre-registered criterion (§0.5):
+Uses stratified 5-fold CV with per-fold 1000x bootstrap CI (95%, 2.5th pct).
+Gate 2 pre-registered criterion (S0.5):
   mean(macro_f1) >= 0.80  AND  mean(macro_f1_lo) >= 0.70
   where macro_f1_lo = 2.5th percentile of fold-level bootstrap distribution.
 
@@ -39,13 +39,13 @@ from sklearn.metrics import f1_score
 from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import LabelEncoder
 
-# ── Paths ─────────────────────────────────────────────────────────────────────
+# ?? Paths ?????????????????????????????????????????????????????????????????????
 FEAT_PATH  = Path("/data/features/fused/feature_matrix.parquet")
 LABEL_PATH = Path("/data/features/fused/labels.parquet")
 MODEL_DIR  = Path("/data/models/tier_a")
 MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
-# ── Constants ─────────────────────────────────────────────────────────────────
+# ?? Constants ?????????????????????????????????????????????????????????????????
 ACC_COL  = "uniprot_acc"
 N_FOLDS  = 5
 N_BOOT   = 1000
@@ -60,7 +60,7 @@ LGB_PARAMS = {
     "learning_rate":     0.05,
     "num_leaves":        31,
     "min_child_samples": 5,
-    "colsample_bytree":  0.5,   # critical: 1953 features → subsample cols
+    "colsample_bytree":  0.5,   # critical: 1953 features -> subsample cols
     "subsample":         0.8,
     "subsample_freq":    1,
     "reg_lambda":        0.1,
@@ -71,7 +71,7 @@ LGB_PARAMS = {
 }
 
 
-# ── Bootstrap helper ──────────────────────────────────────────────────────────
+# ?? Bootstrap helper ??????????????????????????????????????????????????????????
 
 def bootstrap_macro_f1(
     y_true: np.ndarray,
@@ -79,7 +79,7 @@ def bootstrap_macro_f1(
     n: int = N_BOOT,
     seed: int = SEED,
 ) -> tuple[float, float, float]:
-    """Return (point_f1, ci_lo_2.5pct, ci_hi_97.5pct) via 1000× bootstrap."""
+    """Return (point_f1, ci_lo_2.5pct, ci_hi_97.5pct) via 1000x bootstrap."""
     rng = np.random.default_rng(seed)
     scores: list[float] = []
     for _ in range(n):
@@ -91,7 +91,7 @@ def bootstrap_macro_f1(
     return f1_pt, float(np.quantile(scores, 0.025)), float(np.quantile(scores, 0.975))
 
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+# ?? Main ??????????????????????????????????????????????????????????????????????
 
 def run() -> None:
     # 1. Load features and labels
@@ -159,10 +159,10 @@ def run() -> None:
     gate2_pass = (mean_f1 >= 0.80) and (mean_lo >= 0.70)
     print(
         f"\nGate 2 (mean_f1 >= 0.80 AND mean_lo >= 0.70): "
-        f"{'PASS ✓' if gate2_pass else 'FAIL ✗'}"
+        f"{'PASS ?' if gate2_pass else 'FAIL ?'}"
     )
     if not gate2_pass:
-        print("  WARNING: Gate 2 not met — review class balance and feature coverage.")
+        print("  WARNING: Gate 2 not met -- review class balance and feature coverage.")
 
     # 4. Retrain on full dataset
     print("\nRetraining on full dataset...")
@@ -173,7 +173,7 @@ def run() -> None:
     model_path = MODEL_DIR / "model.pkl"
     with open(model_path, "wb") as fh:
         pickle.dump({"model": final_clf, "label_encoder": le, "feature_cols": feature_cols}, fh)
-    print(f"Model saved → {model_path}")
+    print(f"Model saved -> {model_path}")
 
     # 6. Feature importance
     fi_df = pd.DataFrame({
@@ -182,7 +182,7 @@ def run() -> None:
     }).sort_values("importance", ascending=False).reset_index(drop=True)
     fi_path = MODEL_DIR / "feature_importance.parquet"
     fi_df.to_parquet(fi_path, compression="zstd", index=False)
-    print(f"Feature importance → {fi_path}")
+    print(f"Feature importance -> {fi_path}")
     print("\nTop-10 features:")
     print(fi_df.head(10).to_string(index=False))
 
@@ -204,8 +204,8 @@ def run() -> None:
     }
     (MODEL_DIR / "cv_summary.json").write_text(json.dumps(summary, indent=2))
 
-    print(f"\nCV metrics   → {cv_path}")
-    print(f"CV summary   → {MODEL_DIR / 'cv_summary.json'}")
+    print(f"\nCV metrics   -> {cv_path}")
+    print(f"CV summary   -> {MODEL_DIR / 'cv_summary.json'}")
 
 
 if __name__ == "__main__":

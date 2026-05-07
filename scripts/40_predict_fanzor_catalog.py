@@ -1,4 +1,4 @@
-"""Step 18 — Prospective prediction: Fanzor/OMEGA-nuclease catalog (Week 7).
+"""Step 18 ? Prospective prediction: Fanzor/OMEGA-nuclease catalog (Week 7).
 
 Runs mech-class predictor over candidate Fanzor ortholog sequences from the
 genome-atlas (Eukaryota proteins + TnpB/PF07282-domain proteins).
@@ -37,7 +37,7 @@ import numpy as np
 import pandas as pd
 
 # ---------------------------------------------------------------------------
-# Paths — all inside /data mount
+# Paths ? all inside /data mount
 # ---------------------------------------------------------------------------
 ATLAS_DB       = Path("/data/graphs/atlas.duckdb")
 FEAT_MATRIX    = Path("/data/features/fused/feature_matrix.parquet")
@@ -55,7 +55,7 @@ FANZOR_CONF_THRESHOLD = 0.70
 CHECKPOINT_EVERY      = 200
 PRINT_EVERY           = 50
 
-# Pfam whitelist — same order as dom_0..dom_22 in feature matrix
+# Pfam whitelist ? same order as dom_0..dom_22 in feature matrix
 PFAM_WHITELIST = [
     "PF13395", "PF18541", "PF16595", "PF18516", "PF01548", "PF02371",
     "PF07282", "PF00665", "PF01609", "PF13586", "PF08721", "PF11426",
@@ -230,13 +230,13 @@ def _build_feature_row(
     """Build a 1-row feature array matching feat_cols order.
 
     Channels used here:
-      seq_0..639  — ESM-2 mean-pool (640-dim)
-      struct_0..1279 — zero-filled (no AlphaFold available in batch mode)
-      dom_0..22   — Pfam whitelist binary flags
-      dom_23      — IS110 composite (PF01548 AND PF02371)
-      dom_24      — zero (editor fusion; not applicable here)
-      dom_25      — single-domain flag (exactly 1 whitelist hit)
-      as_0..N     — zero-filled (no active-site geometry available)
+      seq_0..639  ? ESM-2 mean-pool (640-dim)
+      struct_0..1279 ? zero-filled (no AlphaFold available in batch mode)
+      dom_0..22   ? Pfam whitelist binary flags
+      dom_23      ? IS110 composite (PF01548 AND PF02371)
+      dom_24      ? zero (editor fusion; not applicable here)
+      dom_25      ? single-domain flag (exactly 1 whitelist hit)
+      as_0..N     ? zero-filled (no active-site geometry available)
     """
     row = np.zeros(len(feat_cols), dtype=np.float32)
 
@@ -261,7 +261,7 @@ def _build_feature_row(
     if "dom_23" in col_map:
         row[col_map["dom_23"]] = float("PF01548" in pfam_set and "PF02371" in pfam_set)
 
-    # dom_24: editor fusion — leave 0
+    # dom_24: editor fusion ? leave 0
 
     # dom_25: single-domain
     if "dom_25" in col_map:

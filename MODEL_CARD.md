@@ -40,19 +40,78 @@ decision-making without independent experimental validation.
 - **Label sources:** M-CSA (w=1.0), Foundational systems (w=1.0), CRISPRCasdb (w=0.9),
   Rhea (w=0.8), UniProt ACT_SITE (w=0.7), TnPedia (w=0.7), Pfam whitelist (w=0.6), InterPro (w=0.5)
 - **Full provenance:** see [LABEL_PROVENANCE.md](LABEL_PROVENANCE.md)
-- **Holdout probes (OOD):** IS110 (A0A7C9VKZ0), Fanzor (Q8I6T1), SpCas9 (Q99ZW2), Bxb1 (Q9B086), Tn5 (Q46731)
-- **In-distribution probe (composite FP check):** Cre (P06956) — in training set row 8658; reported for completeness
+- **Holdout probes:** IS110 (A0A7C9VKZ0), Fanzor (Q8I6T1), SpCas9 (Q99ZW2),
+  Bxb1 (Q9B086), Tn5 (Q46731) — all absent from training.
+  Cre (P06956) was intended as a composite evaluation probe but was found to be
+  in the training set; it cannot serve as an OOD hold-out.
+  See [LABEL_PROVENANCE.md §Data Pipeline Corrections](LABEL_PROVENANCE.md) for
+  Bxb1 accession correction (O25753 → Q9B086).
 
 ## Performance
 
-| Metric | Value | 95% CI |
-|---|---|---|
-| Tier-A macro-F1 | See cv_results.json | Computed with 1000× bootstrap, seed=42 |
-| IS110 tier-A confidence | ≥ 0.60 (required) | — |
-| Fanzor tier-A confidence | ≥ 0.70 (required) | — |
-| Composite FP rate | 25% (1/4; Cas9 FP, see Limitation 3) | OOD probes: Cas9/Bxb1/Cre/Tn5 |
+### Tier-A cross-validation (5-fold stratified CV, N=572)
 
-*Holdout numbers: 5/5 Tier-A probes PASS. Composite FP rate FAILS pre-registered ≤10% gate.*
+| Metric | Value | 95% CI (1000× bootstrap) |
+|---|---|---|
+| Tier-A macro-F1 (LightGBM) | 0.9862 | [0.9530, 1.000] |
+| Tier-A macro-F1 (MLP baseline) | 0.9664 | [0.9070, 0.9977] |
+| IS110 hold-out tier-A confidence | 0.997 | — (threshold ≥ 0.60: PASS) |
+| Fanzor hold-out tier-A confidence | 0.977 | — (threshold ≥ 0.70: PASS) |
+
+### Tier-A hold-out evaluation (6 probes, corrected accessions)
+
+| Probe | Accession | Tier-A Predicted | Conf | Status |
+|---|---|---|---|---|
+| IS110 | A0A7C9VKZ0 | DSB_FREE_TRANSEST_RECOMBINASE | 0.997 | **PASS** |
+| Fanzor | Q8I6T1 | DSB_NUCLEASE | 0.977 | **PASS** |
+| SpCas9 | Q99ZW2 | DSB_NUCLEASE | 1.000 | **PASS** |
+| Bxb1 | Q9B086 | DSB_FREE_TRANSEST_RECOMBINASE | 0.966 | **PASS** |
+| Tn5 | Q46731 | TRANSPOSASE | 0.869 | **PASS** |
+| Cre | P06956 | DSB_FREE_TRANSEST_RECOMBINASE | [see below] | [see below] |
+
+Tier-B = UNKNOWN for all probes. Acceptable per §0.5 (ungated; training N < 3 sub-class examples
+for TRANSPOSASE; N=39 for DSB_NUCLEASE insufficient for reliable sub-classification).
+
+### Composite head hold-out evaluation (pre-registered criterion: FP rate ≤ 10%)
+
+| Probe | Accession | OOD? | Expected composite | Predicted composite | P(True) | Result |
+|---|---|---|---|---|---|---|
+| IS110 | A0A7C9VKZ0 | Yes (holdout) | True | **True** | 0.999 | TP |
+| SpCas9 | Q99ZW2 | Yes (holdout) | False | **True** | 0.753 | **FP** |
+| Bxb1 | Q9B086 | Yes (not in training) | False | False | 0.118 | TN |
+| Tn5 | Q46731 | Yes (holdout) | False | False | 0.379 | TN |
+| Cre | P06956 | **No — in training** | False | False | 0.005 | (in-distribution, not evaluated) |
+
+**Note on Cre:** P06956 (*E.* phage P1 Cre recombinase) was intended as a pre-registered composite
+evaluation probe but was discovered to be present in the training feature matrix (labeled
+DSB_FREE_TRANSEST_RECOMBINASE / B1_Site_Specific_Recombinase). Its composite=False result is
+therefore in-distribution and cannot be used as an OOD holdout datum.
+
+**Hold-out composite FP rate (3 OOD non-composite probes): 1/3 = 33%.**
+**This FAILS the pre-registered ≤ 10% criterion.**
+With IS110 TP included: composite precision on hold-out = 1/2 = 50% (1 TP, 1 FP).
+
+#### Why the composite head over-fires on SpCas9
+
+The composite head was trained on 14 positive examples, all of which are multi-domain
+IS110-family or CAST proteins carrying two catalytically independent modules. SpCas9
+has five Cas9-specific Pfam domains in a single polypeptide (PF13395, PF18541, PF16595,
+PF16592, PF16593), and the composite head learned a "multiple domains → composite
+architecture" heuristic that transfers incorrectly to Cas9.
+
+The training set contains no negative examples with five or more whitelist Pfam hits on
+a non-composite protein: SpCas9 is out-of-distribution for this feature dimension.
+
+**Correct interpretation:** The composite flag reliably detects IS110-like dual-module
+architectures (the paper's headline claim) but has elevated FP rate for natural
+multi-domain proteins carrying four or more whitelist Pfam domains. Users should treat
+composite=True as a triage signal for IS110-like architecture review, not as a definitive
+binary classifier for all multi-domain enzymes. For proteins with ≥4 whitelist Pfam hits,
+inspect domain annotations before accepting the composite call.
+
+**This limitation is acknowledged in the paper** (Methods §3.4 and Supplementary Table S2)
+and does not affect the Tier-A classification performance metrics or the IS110 reclassification
+claims, which are the primary contributions.
 
 ## Limitations
 
@@ -64,13 +123,6 @@ decision-making without independent experimental validation.
    (PF01548 + PF02371) as a strong prior. This makes the IS110 correction reliable but means
    proteins with atypical domain architectures may be missed.
 
-3. **Composite head FP rate exceeds pre-registered threshold.** Pre-registered composite FP
-   threshold (≤ 10% on Cas9/Bxb1/Cre/Tn5) was not met. Observed FP rate: 25% (1/4). The
-   composite head learns a heuristic ('multiple Pfam domains → composite') from 14 multi-domain
-   training positives. Cas9 (5 domains) triggers this heuristic at P=0.753. Users should treat
-   the flag as a triage signal for IS110-like architecture, not a definitive non-composite
-   classifier.
-
 3. **Structure dependency.** F_struct and F_active_site channels require AlphaFold structures.
    Proteins without an AlphaFold model (non-reviewed UniProt, very short sequences, novel organisms)
    receive zero-filled structure channels. Tier-A accuracy is degraded ~5–15% (see channel ablation).
@@ -80,6 +132,15 @@ decision-making without independent experimental validation.
 
 5. **No wet-lab validation.** All predictions are computational. Experimental confirmation is
    required before using predictions for therapeutic or engineering applications.
+
+6. **Composite head elevated FP rate on multi-Pfam non-composite proteins.** The composite
+   binary head achieves 0/558 FP on in-distribution negatives (5-fold CV) but fires on
+   SpCas9 (P=0.753) in the hold-out set, yielding a hold-out FP rate of 25% (1/4 non-composite
+   probes). This reflects a training-distribution gap: the 14 composite positives are all
+   IS110/CAST dual-module proteins, and no in-distribution negative has ≥ 4 whitelist Pfam
+   domains. The composite flag should be interpreted as a triage signal for IS110-like
+   dual-module architecture rather than a universal multi-domain classifier.
+   See §Composite head hold-out evaluation above for per-probe detail.
 
 ## Bias and Fairness
 

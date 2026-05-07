@@ -1,4 +1,4 @@
-"""Step 19 — Prospective prediction: RuvC-fold superfamily triage (Week 7).
+"""Step 19 ? Prospective prediction: RuvC-fold superfamily triage (Week 7).
 
 Runs mech-class over all atlas proteins NOT in the labeled training set that
 carry at least one whitelist Pfam domain. Produces a triage table distinguishing:
@@ -51,7 +51,7 @@ OUT_DIR     = Path("/data/results")
 
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# Pfam whitelist — same order as dom_0..dom_22 in feature matrix
+# Pfam whitelist ? same order as dom_0..dom_22 in feature matrix
 PFAM_WHITELIST = [
     "PF13395", "PF18541", "PF16595", "PF18516", "PF01548", "PF02371",
     "PF07282", "PF00665", "PF01609", "PF13586", "PF08721", "PF11426",
@@ -191,7 +191,7 @@ def run() -> None:
         _log("No candidates to process.")
         return
 
-    # ---- Batch predict (domain features only — fast) ----
+    # ---- Batch predict (domain features only ? fast) ----
     _log(f"Building feature matrix for {n_total} candidates...")
 
     # Pre-build all feature rows at once
