@@ -100,7 +100,7 @@ def search_rhea(query: str) -> list[str]:
     try:
         r = requests.get(
             RHEA_SEARCH,
-            params={"query": query, "format": "json", "limit": MAX_RHEA_IDS},
+            params={"query": query, "format": "json", "limit": MAX_RHEA_IDS},  # type: ignore[arg-type]
             timeout=30,
         )
         r.raise_for_status()
@@ -123,7 +123,7 @@ def fetch_uniprot_for_rhea(rhea_id: str) -> list[dict]:
     try:
         r = requests.get(
             UNIPROT_SEARCH,
-            params={
+            params={  # type: ignore[arg-type]
                 "query": f"(rhea:{rhea_id}) AND (reviewed:true)",
                 "fields": "accession,protein_name,organism_name",
                 "format": "json",

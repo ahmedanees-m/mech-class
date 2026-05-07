@@ -83,7 +83,7 @@ def query_pfam(pfam_acc: str) -> list[dict]:
 
     while cursor_url:
         if cursor_url == UNIPROT_SEARCH:
-            r = requests.get(cursor_url, params=params, headers={"Accept": "application/json"}, timeout=60)
+            r = requests.get(cursor_url, params=params, headers={"Accept": "application/json"}, timeout=60)  # type: ignore[arg-type]
         else:
             r = requests.get(cursor_url, headers={"Accept": "application/json"}, timeout=60)
         r.raise_for_status()

@@ -125,6 +125,7 @@ class Predictor:
         model_dir: str | Path | None = None,
         *,
         download: bool = True,
+        device: str = "cpu",  # reserved for future SaProt GPU inference; unused in v0.5
     ) -> Predictor:
         """Load trained models from a local directory.
 
