@@ -8,62 +8,76 @@
 
 **Part of [PEN-STACK](https://github.com/ahmedanees-m)**
 
-Mechanism classifier for DNA-modifying enzymes — predicts catalytic mechanism (three Tier-A classes + nine Tier-B sub-classes) from protein sequence + structure, with **explicit handling of composite catalytic architectures** such as IS110 family proteins (RuvC-fold N-terminal domain + serine-recombinase C-terminal domain).
+Structure-aware mechanism classifier for DNA-modifying enzymes. Predicts catalytic mechanism across three Tier-A classes with Tier-B sub-classification, from protein sequence and structure, with **explicit handling of composite catalytic architectures** (IS110 family bridge recombinases).
 
 Built on top of [GENOME-ATLAS](https://github.com/ahmedanees-m/genome-atlas) (Paper 1 of PEN-STACK).
 
+---
+
 ## Scientific contribution
 
-The single most novel contribution of MECH-CLASS is explicit handling of composite catalytic architectures. IS110 family proteins (bridge recombinases) carry a RuvC-fold DEDD N-terminal domain and a serine-recombinase Tnp C-terminal domain. Existing Pfam/BLAST classifiers either collapse this to "DEDD nuclease" (wrong) or "serine recombinase" (incomplete). MECH-CLASS predicts:
+The key novel contribution is explicit handling of composite catalytic architectures. IS110 family proteins carry a RuvC-fold DEDD N-terminal domain and a serine-recombinase Tnp C-terminal domain. Existing classifiers collapse this to "DEDD nuclease" (wrong) or "serine recombinase" (incomplete). MECH-CLASS predicts:
 
-- Tier A: `DSB_FREE_TRANSEST_RECOMBINASE` ✓ (correct — no DSB, transesterase chemistry)
-- Tier B: `B3_Programmable_Recombinase` ✓
-- `composite_architecture: True` ✓ (RuvC-fold + serine Tnp, both domains required)
+- Tier A: `DSB_FREE_TRANSEST_RECOMBINASE` (correct — no DSB, transesterase chemistry)
+- `composite_architecture: True` (RuvC-fold + serine Tnp, both domains required)
 
 **Three Tier-A mechanism classes:**
-- `DSB_NUCLEASE` — hydrolytic phosphodiester cleavage, DSB produced (Cas9, Cas12a/f, Fanzor)
-- `DSB_FREE_TRANSEST_RECOMBINASE` — transesterification, no DSB (IS110, CAST, Cre, Bxb1)
-- `TRANSPOSASE` — DDE-family cut-and-paste transposition (Tn5, IS3-family)
 
-**Pre-registered success criteria** (locked 2026-04-30):
-- Tier A macro-F1 ≥ 0.80, 95% bootstrap CI lower bound ≥ 0.70
-- IS110 hold-out: `DSB_FREE_TRANSEST_RECOMBINASE` confidence ≥ 0.60
-- Fanzor hold-out: `DSB_NUCLEASE` confidence ≥ 0.70
-- Composite FP rate on Cas9/Bxb1/Cre/Tn5 ≤ 10%
+| Class | Chemistry | Examples |
+|---|---|---|
+| `DSB_NUCLEASE` | Hydrolytic phosphodiester cleavage, DSB produced | Cas9, Cas12a/f, Fanzor, TnpB |
+| `DSB_FREE_TRANSEST_RECOMBINASE` | Transesterification, no DSB | IS110, CAST, Cre, Bxb1, Lambda Int |
+| `TRANSPOSASE` | DDE-family cut-and-paste transposition | Tn5, IS10, Mos1 |
+
+**Performance (v1.0, 572-protein gold set):**
+
+| Metric | Value | 95% Bootstrap CI |
+|---|---|---|
+| Tier-A macro-F1 | 0.9862 | [0.971, 0.997] |
+| Composite head FP rate | 4.2% | — |
+| IS110 holdout confidence | 0.994 | — |
+
+---
 
 ## Install
 
 ```bash
 pip install mech-class
+pip install lightgbm   # required for inference
+```
+
+For sequence embedding (improves accuracy; not required for domain-feature-only predictions):
+
+```bash
+pip install fair-esm torch
 ```
 
 ## Quickstart
 
 ```python
-from mech_class import Predictor
+from mech_class.api import Predictor
 
+# Load trained models (downloads from Zenodo on first call)
 predictor = Predictor.load()
-prediction = predictor.predict_from_sequence(
-    accession="P0DOC6",
-    sequence="MDKKYSIGLDIGTNSVGWAVITDEYKVPSKKFKVLGNTDRHSIKKNL...",
+
+# Predict from sequence — UniProt accession triggers Pfam lookup automatically
+pred = predictor.predict_from_sequence(
+    accession="Q99ZW2",           # SpCas9
+    sequence="MDKKYSIGLDIGTNSVGWAVITDEYKVPS...",
 )
-print(prediction.tier_a)              # 'DSB_NUCLEASE'
-print(prediction.tier_b)              # 'N1_CRISPR_Cas'
-print(prediction.composite)           # False
-print(prediction.confidence)          # 0.94
-```
+print(pred.tier_a)              # 'DSB_NUCLEASE'
+print(pred.tier_a_confidence)   # 0.997
+print(pred.composite)           # False
 
-Composite-case prediction (IS110 bridge recombinase):
-
-```python
+# Supply pre-computed Pfam hits to bypass UniProt lookup (recommended for batch use)
 is110_pred = predictor.predict_from_sequence(
-    accession="A0A0X1KFI0",  # IS110 family protein
+    accession="A0A7C9VKZ0",
     sequence="...",
+    pfam_hits=["PF01548", "PF02371"],   # IS110: RuvC-fold + serine Tnp
 )
 print(is110_pred.tier_a)              # 'DSB_FREE_TRANSEST_RECOMBINASE'
-print(is110_pred.tier_b)              # 'B3_Programmable_Recombinase'
 print(is110_pred.composite)           # True
-print(is110_pred.composite_evidence)  # ['RuvC-fold DEDD N-term', 'serine Tnp C-term']
+print(is110_pred.composite_prob)      # 0.994
 ```
 
 ## Command-line interface
@@ -72,38 +86,226 @@ print(is110_pred.composite_evidence)  # ['RuvC-fold DEDD N-term', 'serine Tnp C-
 # Predict mechanism for all sequences in a FASTA file
 mech-class predict proteins.fasta --output predictions.parquet
 
-# Apply to Fanzor ortholog catalog
+# Predict with GPU-accelerated ESM-2 embeddings
 mech-class predict fanzor_orthologs.fasta --output fanzor_predictions.parquet --device cuda
 ```
 
-## Architecture
-
-```
-mech_class/
-├── api.py              Predictor class (public entry point)
-├── data/               Taxonomy YAML, data loaders
-├── evidence/           Label construction: M-CSA, Rhea, UniProt, InterPro, TnPedia
-├── features/           F_seq (ESM-2 reuse), F_struct (SaProt 650M), F_domain, F_active_site
-├── models/             LightGBM Tier-A + Tier-B + composite flag head
-└── utils/              pLDDT filter, active-site geometry helpers
-
-scripts/
-├── 01-07_*             Evidence ingestion + label aggregation + review queue
-├── 10-13_*             Feature computation (SaProt, active-site, domain, fusion)
-├── 20-24_*             Classifier training, ablation, bootstrap CIs
-├── 30_holdout_*        Composite-case validation (IS110, Fanzor, Cas9, Bxb1, Tn5)
-├── 40_fanzor_*         Prospective: ~3,000 Fanzor orthologs
-└── 41_ruvc_fold_*      Prospective: ~800k RuvC-fold superfamily → top-1,000 catalog
-```
+---
 
 ## Feature channels
 
-| Channel | Source | Dimension | Notes |
+| Channel | Dimension | Source | Notes |
 |---|---|---|---|
-| F_seq | ESM-2 150M (Paper 1 reuse) | 640 | No re-inference |
-| F_struct | SaProt 650M | 1280 | Structure-aware PLM |
-| F_domain | Pfam binary + co-occurrence | ~40 | DEDD + IS110-specific composite flag |
-| F_active_site | Geometry from PDB/AF (pLDDT ≥ 70) | ~20 | Active-site Ca distances, DSSP |
+| `F_seq` | 640 | ESM-2 150M mean-pool | Reused from GENOME-ATLAS Paper 1; lazy-loaded singleton |
+| `F_struct` | 1280 | SaProt 650M 3Di tokens | Zero-filled at inference unless `pdb_path=` provided |
+| `F_domain` | 26 | Pfam binary flags + composite | dom_0..22: PFAM_WHITELIST; dom_23: IS110 composite; dom_24: reserved; dom_25: single-domain flag |
+| `F_active_site` | 7 | PDB/AlphaFold geometry | Zero-filled unless PDB available; pLDDT ≥ 70 filter |
+| **Total** | **1953** | | Matches `features/feature_matrix.parquet` columns exactly |
+
+**PFAM_WHITELIST (23 entries, fixed order dom_0..dom_22):**
+`PF13395 PF18541 PF16595 PF18516 PF01548 PF02371 PF07282 PF00665 PF01609 PF13586 PF08721 PF11426 PF05621 PF00589 PF00239 PF07508 PF01844 PF02486 PF18061 PF16592 PF16593 PF13639 PF03377`
+
+---
+
+## Repository layout
+
+```
+mech-class/
+│
+├── mech_class/                     Python package (installable)
+│   ├── __init__.py                 Public API re-exports
+│   ├── _version.py                 Version string (setuptools-scm)
+│   ├── api.py                      Predictor class — main public entry point
+│   ├── cli.py                      Click CLI (`mech-class predict`)
+│   ├── data/
+│   │   ├── active_site_residues.yaml  Catalytic residue definitions per family
+│   │   ├── label_taxonomy.yaml        Tier-A / Tier-B class hierarchy
+│   │   └── loader.py                  Data-loading helpers
+│   ├── evidence/                   Label construction (8 evidence sources)
+│   │   ├── aggregator.py           Weighted vote → EvidenceRecord; IS110 override rule
+│   │   ├── mcsa.py                 M-CSA mechanistic annotations
+│   │   ├── rhea.py                 Rhea reaction database
+│   │   ├── uniprot_features.py     UniProt active-site / binding-site features
+│   │   ├── interpro.py             InterPro clan CL0219 (DEDD fold)
+│   │   ├── tnpedia.py              TnPedia / ISfinder transposase catalog
+│   │   ├── crisprcasdb.py          CRISPRCasdb CRISPR effector annotations
+│   │   ├── pfam_whitelist.py       Pfam-to-mechanism whitelist
+│   │   ├── foundational.py         Foundational systems YAML (expert-curated)
+│   │   └── atlas_domain.py         GENOME-ATLAS DuckDB domain evidence
+│   ├── features/                   Feature engineering
+│   │   ├── seq.py                  F_seq: ESM-2 150M embeddings (640-dim)
+│   │   ├── domain.py               F_domain: Pfam binary flags + composite (26-dim)
+│   │   ├── struct.py               F_struct: SaProt 650M 3Di tokens (1280-dim)
+│   │   └── active_site.py          F_active_site: PDB geometry (7-dim)
+│   ├── models/                     Classifier wrappers
+│   │   ├── lightgbm_clf.py         LightGBMClassifier (fit/predict/macro_f1/save/load)
+│   │   ├── composite_head.py       CompositeHead binary classifier (IS110 detection)
+│   │   └── mlp_clf.py              MLPClassifier baseline (ablation only)
+│   └── utils/
+│       └── plddt.py                pLDDT-based structure quality filter
+│
+├── scripts/                        Numbered pipeline scripts (run in order on VM)
+│   ├── 00_smoke_import.py          Package import smoke test
+│   │
+│   ├── 01_pull_mcsa.py             Evidence ingestion: M-CSA
+│   ├── 02_pull_rhea.py             Evidence ingestion: Rhea
+│   ├── 03_pull_uniprot_features.py Evidence ingestion: UniProt active-site features
+│   ├── 04_pull_interpro.py         Evidence ingestion: InterPro CL0219
+│   ├── 05_pull_tnpedia.py          Evidence ingestion: TnPedia / ISfinder
+│   ├── 05b_pull_crisprcasdb.py     Evidence ingestion: CRISPRCasdb
+│   ├── 05c_pull_pfam_whitelist.py  Evidence ingestion: Pfam whitelist
+│   ├── 05d_pull_foundational.py    Evidence ingestion: Foundational systems
+│   ├── 05e_pull_atlas_domains.py   Evidence ingestion: GENOME-ATLAS domains
+│   ├── 06_aggregate_evidence.py    Weighted vote → mechanism_labels_raw.parquet
+│   ├── 07_review_queue.py          Flag contradictions → review_queue.parquet
+│   ├── 08_ingest_curator_decisions.py  Apply manual decisions → gold set
+│   │
+│   ├── 10_compute_esm2_embeddings.py   F_seq: ESM-2 150M (reused from Paper 1)
+│   ├── 11_compute_saprot_embeddings.py F_struct: SaProt 650M 3Di tokens
+│   ├── 12_compute_active_site_features.py  F_active_site: PDB geometry (7-dim)
+│   ├── 13_compute_domain_features.py   F_domain: Pfam binary flags (26-dim)
+│   ├── 14_assemble_feature_matrix.py   Fuse all channels → 1953-dim matrix
+│   │
+│   ├── 20_train_tier_a.py          Train Tier-A 3-class LightGBM (5-fold CV)
+│   ├── 21_train_tier_b.py          Train per-class Tier-B LightGBM sub-classifiers
+│   ├── 22_train_composite_head.py  Train binary IS110 composite head
+│   ├── 23_channel_ablation.py      7-condition channel ablation study
+│   ├── 24_bootstrap_cis.py         1000× bootstrap CIs on test set
+│   ├── 25_train_mlp_baseline.py    MLP baseline for ablation comparison
+│   ├── 26_holdout_validation.py    5-probe OOD holdout validation
+│   ├── 27_spcas9_composite_check.py  SpCas9 composite FP characterisation
+│   ├── 28_bxb1_saprot.py           Bxb1 SaProt structure embedding check
+│   ├── 29_holdout_corrected.py     Holdout with accession corrections
+│   ├── 30_holdout_validation.py    Final holdout validation (all 5 probes)
+│   │
+│   ├── 40_assemble_fanzor_candidates.py  Stage 0: Fanzor/TnpB candidate list
+│   ├── 40_predict_fanzor_catalog.py      Stage 1: Tier-A predictions (2,463 candidates)
+│   ├── 41_predict_ruvc_fold_catalog.py   Stage 2: RuvC-fold superfamily triage
+│   ├── 41_stage1_pfam_filter.py          Stage 1 Pfam pre-filter
+│   ├── 50_predictor_smoke_test.py        10-probe end-to-end smoke test
+│   │
+│   └── figures/
+│       ├── fig1_taxonomy.py        Fig 1 — Tier-A / Tier-B taxonomy diagram
+│       ├── fig2_confusion_matrix.py Fig 2 — Tier-A confusion matrix
+│       ├── fig3_channel_ablation.py Fig 3 — Channel ablation bar chart
+│       ├── fig4_is110_composite.py  Fig 4 — IS110 composite domain cartoon
+│       ├── fig5_holdout_probes.py   Fig 5 — Holdout probe confidence scores
+│       └── fig6_fanzor_catalog.py   Fig 6 — Fanzor/TnpB catalog distribution
+│
+├── tests/
+│   ├── conftest.py                 Shared fixtures
+│   ├── unit/
+│   │   ├── test_aggregator.py      Evidence aggregator + IS110 override (22 tests)
+│   │   ├── test_api_helpers.py     _build_feature_row, Prediction model (21 tests)
+│   │   ├── test_composite_head.py  CompositeHead fit/predict/FP rate (6 tests)
+│   │   ├── test_domain_features.py extract_domain_features, IS110 flags (14 tests)
+│   │   ├── test_lightgbm_clf.py    LightGBMClassifier fit/predict/CI (7 tests)
+│   │   └── test_seq_features.py    ESM-2 constants, embed_sequence (11 tests)
+│   ├── integration/
+│   │   ├── test_evidence_pipeline.py  Aggregate → label pipeline (4 tests)
+│   │   └── test_predictor_api.py      Predictor.load → predict (27 tests; VM-gated for model probes)
+│   └── regression/
+│       ├── test_holdout_probes.py     5-probe OOD holdout (VM-gated; requires /data/models)
+│       └── test_tier_a_macro_f1_drift.py  Tier-A macro-F1 ≥ 0.9862 baseline guard (VM-gated)
+│
+├── docs/
+│   ├── conf.py                     Sphinx + Furo configuration
+│   ├── index.rst                   Documentation root
+│   ├── quickstart.rst              Installation and usage guide
+│   ├── changelog.rst               Version history
+│   └── api/
+│       ├── predictor.rst           Predictor API reference
+│       ├── features.rst            Feature module reference
+│       └── models.rst              Model wrapper reference
+│
+├── containers/
+│   └── structure/Dockerfile        pen-stack/structure Docker image (SaProt + Foldseek)
+│
+├── data/                           Curator review files (tracked in git)
+│   ├── review_queue_annotated.tsv      28 manual review decisions
+│   ├── review_queue_annotated_final.tsv Finalized curator decisions
+│   └── review_queue_summary.json       Review queue statistics
+│
+├── results/                        Pre-computed summary JSONs
+│   ├── holdout_results_corrected.json  Holdout validation final results
+│   ├── fanzor_candidates_summary.json  Fanzor catalog summary statistics
+│   └── is110_triage_summary.json       IS110 triage summary statistics
+│
+├── holdout_set.yaml                5 OOD probe definitions (sequences + expected labels)
+├── pyproject.toml                  Package metadata, dependencies, pytest + coverage config
+├── .readthedocs.yaml               ReadTheDocs build configuration
+├── .github/workflows/
+│   ├── ci.yml                      Unit + integration tests (Python 3.10, 3.11)
+│   ├── docker.yml                  pen-stack/structure image build + push to GHCR
+│   └── docs.yml                    ReadTheDocs trigger on main push
+├── MODEL_CARD.md                   Model card: performance, limitations, intended use
+├── LABEL_PROVENANCE.md             Gold-set label provenance and curation decisions
+├── VALIDATION.md                   Pre-registered success criteria and results
+├── UPDATE_STRATEGY.md              Model update and versioning policy
+└── CITATION.cff                    Machine-readable citation metadata
+```
+
+---
+
+## Trained models & data
+
+Model artifacts (PKL files, feature matrices, catalogs) are distributed via Zenodo, not bundled in this repository. `Predictor.load()` downloads them automatically on first use.
+
+**Zenodo deposit:** `https://zenodo.org/records/TODO_FILL_AFTER_DEPOSIT` (DOI pending)
+
+| Artifact | Description | Size |
+|---|---|---|
+| `models/tier_a/model.pkl` | Tier-A 3-class LightGBM; macro-F1=0.9862 | 981 KB |
+| `models/composite_head/model.pkl` | Binary IS110 composite head | 259 KB |
+| `models/tier_b/DSB_NUCLEASE/model.pkl` | Tier-B sub-classifier | 350 KB |
+| `models/tier_b/DSB_FREE_TRANSEST_RECOMBINASE/model.pkl` | Tier-B sub-classifier | 361 KB |
+| `features/feature_matrix.parquet` | 1953-dim training matrix (572 proteins) | 6.6 MB |
+| `features/esm2_150M_v6.parquet` | Pre-computed ESM-2 150M embeddings | 26 MB |
+| `catalogs/fanzor_candidates.parquet` | 2,463 Fanzor/TnpB predictions | 370 KB |
+| `catalogs/is110_triage.parquet` | 31,871 IS110-family protein predictions | 455 KB |
+
+---
+
+## Running the pipeline
+
+All training and feature-extraction scripts require the VM environment (Docker, 64 GB RAM, GPU). Scripts are numbered and designed to be run sequentially.
+
+```bash
+# Evidence ingestion (scripts 01–08) — requires network access to M-CSA, Rhea, UniProt, etc.
+python scripts/01_pull_mcsa.py
+# ... through ...
+python scripts/08_ingest_curator_decisions.py
+
+# Feature computation (scripts 10–14) — requires Docker pen-stack/structure image
+python scripts/10_compute_esm2_embeddings.py
+python scripts/14_assemble_feature_matrix.py   # final 1953-dim assembly
+
+# Training (scripts 20–24)
+python scripts/20_train_tier_a.py              # seed=42, 5-fold stratified CV
+python scripts/21_train_tier_b.py
+python scripts/22_train_composite_head.py
+python scripts/23_channel_ablation.py          # 7 ablation conditions
+python scripts/24_bootstrap_cis.py             # 1000× bootstrap CIs
+
+# Validation (script 30)
+python scripts/30_holdout_validation.py        # 5-probe OOD holdout
+```
+
+## Testing
+
+```bash
+pip install -e ".[dev]"
+
+# Unit + integration tests (no model files required)
+pytest tests/unit/ tests/integration/ -v
+
+# Full suite including regression (requires /data/models/ on VM)
+pytest tests/ -v
+```
+
+**Test suite:** 122 unit + integration tests pass in CI (78% coverage). Regression tests are VM-gated and skip gracefully in CI.
+
+---
 
 ## Citation
 
