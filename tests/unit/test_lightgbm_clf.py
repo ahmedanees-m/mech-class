@@ -3,6 +3,7 @@
 Uses the actual class name LightGBMClassifier from mech_class.models.lightgbm_clf.
 Skipped automatically if lightgbm is not installed (local dev without full deps).
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -12,7 +13,7 @@ pytest.importorskip("lightgbm", reason="lightgbm not installed; install with: pi
 
 from mech_class.models.lightgbm_clf import LightGBMClassifier
 
-RNG     = np.random.default_rng(42)
+RNG = np.random.default_rng(42)
 CLASSES = ["DSB_NUCLEASE", "DSB_FREE_TRANSEST_RECOMBINASE", "TRANSPOSASE"]
 
 

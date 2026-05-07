@@ -13,13 +13,12 @@ pLDDT guard: if mean pLDDT of the catalytic domain < 70, the SaProt embedding
 is down-weighted in the feature fusion (see features/active_site.py and
 models/lightgbm_clf.py ablation). This implements the Paper 1 §1.4.4 caveat.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
-import pandas as pd
 
 SAPROT_DIM = 1280
 SAPROT_MODEL = "westlake-repl/SaProt_650M_AF2"
@@ -31,7 +30,9 @@ def load_structure_tokens(pdb_path: Path) -> str:
     Requires Foldseek binary in PATH (installed in pen-stack/structure Docker image).
     Returns 3Di structural alphabet string, same length as protein sequence.
     """
-    import subprocess, tempfile, os
+    import os
+    import subprocess
+    import tempfile
 
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = os.path.join(tmpdir, "db")
@@ -39,22 +40,26 @@ def load_structure_tokens(pdb_path: Path) -> str:
 
         subprocess.run(
             ["foldseek", "createdb", str(pdb_path), db_path],
-            check=True, capture_output=True,
+            check=True,
+            capture_output=True,
         )
         subprocess.run(
             ["foldseek", "lndb", db_path + "_h", db_path + "_ss_h"],
-            check=True, capture_output=True,
+            check=True,
+            capture_output=True,
         )
 
         # Extract 3Di sequence
         out = subprocess.run(
             ["foldseek", "convert2fasta", db_path + "_ss", result_path],
-            check=True, capture_output=True, text=True,
+            check=True,
+            capture_output=True,
+            text=True,
         )
 
     # Parse FASTA output for 3Di tokens
     lines = out.stdout.strip().split("\n")
-    tokens = "".join(l for l in lines if not l.startswith(">"))
+    tokens = "".join(ln for ln in lines if not ln.startswith(">"))
     return tokens
 
 
@@ -80,8 +85,8 @@ def embed_saprot(
         1280-dimensional mean-pooled embedding.
     """
     try:
-        from transformers import EsmTokenizer, EsmModel
         import torch
+        from transformers import EsmModel, EsmTokenizer
     except ImportError:
         raise ImportError("transformers not installed. pip install transformers")
 
@@ -89,9 +94,7 @@ def embed_saprot(
     model = EsmModel.from_pretrained(SAPROT_MODEL).to(device).eval()
 
     # SaProt interleaves aa + 3Di tokens: "M#A#D#K#..."
-    interleaved = "".join(
-        aa + tok for aa, tok in zip(sequence, structure_tokens)
-    )
+    interleaved = "".join(aa + tok for aa, tok in zip(sequence, structure_tokens))
     inputs = tokenizer(interleaved, return_tensors="pt").to(device)
 
     with torch.no_grad():
@@ -138,7 +141,6 @@ def build_struct_feature_matrix(
 
         try:
             tokens = load_structure_tokens(pdb_path)
-            from Bio import SeqIO
             seq = ""  # would load from FASTA in real pipeline
             emb = embed_saprot(seq, tokens, device=device)
             matrix[i] = emb

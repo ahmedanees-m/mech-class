@@ -14,6 +14,7 @@ Paths (Docker volume layout):
   /data/features/feature_matrix.parquet  — training features (N × 1953 float32)
   /data/models/tier_a/model.pkl          — trained Tier-A LightGBM dict
 """
+
 from __future__ import annotations
 
 import pickle
@@ -22,22 +23,18 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import f1_score
-from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import StratifiedKFold
 
 FEATURE_MATRIX = Path("/data/features/feature_matrix.parquet")
-MODEL_PATH     = Path("/data/models/tier_a/model.pkl")
-BASELINE_F1    = 0.9862
-N_FOLDS        = 5
-RANDOM_STATE   = 42
+MODEL_PATH = Path("/data/models/tier_a/model.pkl")
+BASELINE_F1 = 0.9862
+N_FOLDS = 5
+RANDOM_STATE = 42
 
 pytestmark = pytest.mark.skipif(
     not MODEL_PATH.exists() or not FEATURE_MATRIX.exists(),
-    reason=(
-        "Tier-A model or feature matrix not found at /data/models and /data/features "
-        "— run on VM after training"
-    ),
+    reason=("Tier-A model or feature matrix not found at /data/models and /data/features — run on VM after training"),
 )
 
 
@@ -63,18 +60,19 @@ def test_tier_a_macro_f1_cv_baseline(train_data):
     """5-fold CV macro-F1 must meet pre-registered baseline of ≥ 0.9862."""
     X, y, ta = train_data
     lgbm = ta["model"]
-    le   = ta["label_encoder"]
+    le = ta["label_encoder"]
 
     y_enc = le.transform(y)
 
-    skf    = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=RANDOM_STATE)
+    skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=RANDOM_STATE)
     scores: list[float] = []
 
-    for fold_idx, (train_idx, val_idx) in enumerate(skf.split(X, y_enc)):
+    for _fold_idx, (train_idx, val_idx) in enumerate(skf.split(X, y_enc)):
         X_tr, X_val = X[train_idx], X[val_idx]
         y_tr, y_val = y_enc[train_idx], y_enc[val_idx]
 
         import lightgbm as lgb
+
         fold_model = lgb.LGBMClassifier(**lgbm.get_params())
         fold_model.fit(X_tr, y_tr)
         y_pred = fold_model.predict(X_val)
@@ -82,7 +80,7 @@ def test_tier_a_macro_f1_cv_baseline(train_data):
         scores.append(fold_f1)
 
     mean_f1 = float(np.mean(scores))
-    std_f1  = float(np.std(scores))
+    std_f1 = float(np.std(scores))
     print(f"\nTier-A CV macro-F1: {mean_f1:.4f} ± {std_f1:.4f}  (folds: {scores})")
 
     assert mean_f1 >= BASELINE_F1, (
@@ -101,18 +99,14 @@ def test_tier_a_all_three_classes_trained(train_data):
         "DSB_FREE_TRANSEST_RECOMBINASE",
         "TRANSPOSASE",
     }
-    assert set(classes) == expected, (
-        f"Expected Tier-A classes {expected}, got {set(classes)}"
-    )
+    assert set(classes) == expected, f"Expected Tier-A classes {expected}, got {set(classes)}"
 
 
 def test_feature_matrix_column_count(train_data):
     """Feature matrix must have 1953 features (640 seq + 1280 struct + 26 dom + 7 as)."""
     _, _, ta = train_data
     feat_cols = ta["feature_cols"]
-    assert len(feat_cols) == 1953, (
-        f"Expected 1953 feature columns, got {len(feat_cols)}"
-    )
+    assert len(feat_cols) == 1953, f"Expected 1953 feature columns, got {len(feat_cols)}"
 
 
 def test_is110_holdout_regression(train_data):
@@ -134,14 +128,12 @@ def test_is110_holdout_regression(train_data):
         row[feat_cols].values.astype(np.float32),
         columns=feat_cols,
     )
-    proba_a  = ta["model"].predict_proba(x_row)[0]
+    proba_a = ta["model"].predict_proba(x_row)[0]
     pred_idx = int(np.argmax(proba_a))
-    tier_a   = ta["label_encoder"].inverse_transform([pred_idx])[0]
-    conf     = float(proba_a[pred_idx])
+    tier_a = ta["label_encoder"].inverse_transform([pred_idx])[0]
+    conf = float(proba_a[pred_idx])
 
     assert tier_a == "DSB_FREE_TRANSEST_RECOMBINASE", (
         f"IS110 holdout regression failed: tier_a={tier_a!r} (expected DSB_FREE_TRANSEST_RECOMBINASE)"
     )
-    assert conf >= 0.90, (
-        f"IS110 holdout confidence {conf:.3f} < 0.90"
-    )
+    assert conf >= 0.90, f"IS110 holdout confidence {conf:.3f} < 0.90"

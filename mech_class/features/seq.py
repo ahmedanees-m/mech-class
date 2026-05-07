@@ -7,25 +7,25 @@ Two usage modes:
 The model is loaded once per process (singleton pattern) and kept in memory.
 On CPU, inference takes ~5–30 s per sequence depending on length.
 """
+
 from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 import pandas as pd
 
-ESM2_DIM        = 640
-ESM2_PARQUET    = Path("/data/embeddings/esm2_150M_v6.parquet")
+ESM2_DIM = 640
+ESM2_PARQUET = Path("/data/embeddings/esm2_150M_v6.parquet")
 ESM2_MODEL_NAME = "esm2_t30_150M_UR50D"
 ESM2_REPR_LAYER = 30
-ESM2_MAX_LEN    = 1022   # ESM-2 hard token limit (excludes BOS/EOS)
+ESM2_MAX_LEN = 1022  # ESM-2 hard token limit (excludes BOS/EOS)
 
 # Process-level singleton
-_ESM2_MODEL      = None
-_ESM2_ALPHABET   = None
-_ESM2_CONVERTER  = None
+_ESM2_MODEL = None
+_ESM2_ALPHABET = None
+_ESM2_CONVERTER = None
 
 
 def load_esm2_singleton(*, verbose: bool = True) -> bool:
@@ -35,19 +35,17 @@ def load_esm2_singleton(*, verbose: bool = True) -> bool:
         return True
     try:
         import esm as fair_esm
+
         model, alphabet = fair_esm.pretrained.esm2_t30_150M_UR50D()
         model = model.eval()
-        _ESM2_MODEL     = model
-        _ESM2_ALPHABET  = alphabet
+        _ESM2_MODEL = model
+        _ESM2_ALPHABET = alphabet
         _ESM2_CONVERTER = alphabet.get_batch_converter()
         if verbose:
             print(f"[mech-class] ESM-2 150M loaded (CPU mode, repr_layer={ESM2_REPR_LAYER})")
         return True
     except ImportError:
-        warnings.warn(
-            "fair-esm not installed. F_seq channel will be zero-filled.\n"
-            "Install with: pip install fair-esm"
-        )
+        warnings.warn("fair-esm not installed. F_seq channel will be zero-filled.\nInstall with: pip install fair-esm")
         return False
     except Exception as exc:
         warnings.warn(f"ESM-2 load failed: {exc}. F_seq channel will be zero-filled.")
@@ -80,6 +78,7 @@ def embed_sequence(sequence: str, *, device: str = "cpu") -> np.ndarray:
 
     try:
         import torch
+
         seq = sequence[:ESM2_MAX_LEN]
         model = _ESM2_MODEL
         if device != "cpu":
@@ -114,7 +113,7 @@ def load_esm2_embeddings(path: Path = ESM2_PARQUET) -> pd.DataFrame:
     return df
 
 
-def get_esm2_vector(accession: str, df: Optional[pd.DataFrame] = None) -> np.ndarray:
+def get_esm2_vector(accession: str, df: pd.DataFrame | None = None) -> np.ndarray:
     """Look up a precomputed ESM-2 embedding by accession.
 
     Parameters
@@ -144,9 +143,9 @@ def get_esm2_vector(accession: str, df: Optional[pd.DataFrame] = None) -> np.nda
 def build_seq_feature_matrix(
     accessions: list[str],
     *,
-    esm2_df: Optional[pd.DataFrame] = None,
+    esm2_df: pd.DataFrame | None = None,
     allow_inference: bool = False,
-    sequences: Optional[dict[str, str]] = None,
+    sequences: dict[str, str] | None = None,
 ) -> np.ndarray:
     """Build N × 640 ESM-2 feature matrix from accession list.
 
@@ -169,13 +168,10 @@ def build_seq_feature_matrix(
     if esm2_df is None:
         esm2_df = load_esm2_embeddings()
 
-    matrix  = np.zeros((len(accessions), ESM2_DIM), dtype=np.float32)
+    matrix = np.zeros((len(accessions), ESM2_DIM), dtype=np.float32)
     missing: list[str] = []
 
-    acc_to_emb = dict(
-        zip(esm2_df["accession"].tolist(),
-            esm2_df["embedding"].tolist())
-    )
+    acc_to_emb = dict(zip(esm2_df["accession"].tolist(), esm2_df["embedding"].tolist()))
 
     for i, acc in enumerate(accessions):
         if acc in acc_to_emb:
@@ -186,9 +182,6 @@ def build_seq_feature_matrix(
                 matrix[i] = embed_sequence(sequences[acc])
 
     if missing:
-        warnings.warn(
-            f"{len(missing)} accessions missing ESM-2 embeddings "
-            f"(zero-filled): {missing[:5]}"
-        )
+        warnings.warn(f"{len(missing)} accessions missing ESM-2 embeddings (zero-filled): {missing[:5]}")
 
     return matrix

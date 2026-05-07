@@ -1,4 +1,5 @@
 """Shared pytest fixtures for mech-class test suite."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -13,15 +14,34 @@ def rng() -> np.random.Generator:
 
 @pytest.fixture
 def synthetic_evidence_df() -> pd.DataFrame:
-    return pd.DataFrame([
-        {"accession": "P001", "tier_a": "DSB_NUCLEASE", "weight": 1.0,
-         "source": "M-CSA", "tier_b": "N1_CRISPR_Cas", "composite_flag": False},
-        {"accession": "P002", "tier_a": "DSB_FREE_TRANSEST_RECOMBINASE", "weight": 0.7,
-         "source": "TnPedia_ISfinder", "tier_b": "B3_Programmable_Recombinase",
-         "composite_flag": True},
-        {"accession": "P003", "tier_a": "TRANSPOSASE", "weight": 0.9,
-         "source": "CRISPRCasdb", "tier_b": "T1_DDE_Transposase", "composite_flag": False},
-    ])
+    return pd.DataFrame(
+        [
+            {
+                "accession": "P001",
+                "tier_a": "DSB_NUCLEASE",
+                "weight": 1.0,
+                "source": "M-CSA",
+                "tier_b": "N1_CRISPR_Cas",
+                "composite_flag": False,
+            },
+            {
+                "accession": "P002",
+                "tier_a": "DSB_FREE_TRANSEST_RECOMBINASE",
+                "weight": 0.7,
+                "source": "TnPedia_ISfinder",
+                "tier_b": "B3_Programmable_Recombinase",
+                "composite_flag": True,
+            },
+            {
+                "accession": "P003",
+                "tier_a": "TRANSPOSASE",
+                "weight": 0.9,
+                "source": "CRISPRCasdb",
+                "tier_b": "T1_DDE_Transposase",
+                "composite_flag": False,
+            },
+        ]
+    )
 
 
 @pytest.fixture

@@ -10,31 +10,30 @@ clan-level inference is intentionally assigned DSB_NUCLEASE here; the aggregator
 resolves the IS110 conflict using Pfam PF02371 (Tnp domain), TnPedia, and the
 foundational systems anchor label for IS621.
 """
+
 from __future__ import annotations
 
+from importlib.resources import files as pkg_files
 from pathlib import Path
 
 import pandas as pd
 import requests
 import yaml
-from importlib.resources import files as pkg_files
 from rich.progress import track
 
 INTERPRO_API = "https://www.ebi.ac.uk/interpro/api/entry/pfam"
 
 CLAN_MECHANISM: dict[str, str] = {
-    "CL0219": "DSB_NUCLEASE",                   # RNase H-like (RuvC, IS110 N-terminus)
-    "CL0237": "DSB_NUCLEASE",                   # HNH endonuclease
+    "CL0219": "DSB_NUCLEASE",  # RNase H-like (RuvC, IS110 N-terminus)
+    "CL0237": "DSB_NUCLEASE",  # HNH endonuclease
     "CL0184": "DSB_FREE_TRANSEST_RECOMBINASE",  # Phage integrase / lambda Int
     "CL0407": "DSB_FREE_TRANSEST_RECOMBINASE",  # Resolvase / serine recombinase
-    "CL0029": "TRANSPOSASE",                    # rve / DDE integrase core
+    "CL0029": "TRANSPOSASE",  # rve / DDE integrase core
 }
 
 
 def _load_pfam_whitelist() -> list[dict]:
-    raw = yaml.safe_load(
-        pkg_files("genome_atlas").joinpath("data/pfam_whitelist.yaml").read_text()
-    )
+    raw = yaml.safe_load(pkg_files("genome_atlas").joinpath("data/pfam_whitelist.yaml").read_text())
     return raw["domains"]
 
 
@@ -60,14 +59,16 @@ def main(output: Path = Path("/data/labels/evidence/interpro.parquet")) -> None:
     rows: list[dict] = []
     for d in track(domains, description="InterPro clan queries"):
         clan = fetch_pfam_clan(d["accession"])
-        rows.append({
-            "source": "InterPro",
-            "pfam_acc": d["accession"],
-            "pfam_name": d["name"],
-            "clan_acc": clan,
-            "inferred_tier_a": CLAN_MECHANISM.get(clan or "", "UNKNOWN"),
-            "evidence_weight": 0.5,
-        })
+        rows.append(
+            {
+                "source": "InterPro",
+                "pfam_acc": d["accession"],
+                "pfam_name": d["name"],
+                "clan_acc": clan,
+                "inferred_tier_a": CLAN_MECHANISM.get(clan or "", "UNKNOWN"),
+                "evidence_weight": 0.5,
+            }
+        )
 
     df = pd.DataFrame(rows)
     output.parent.mkdir(parents=True, exist_ok=True)

@@ -27,9 +27,9 @@ for Cas9 is xfail for this reason.
 Note on Cre (P06956): found in training set; cannot be used as OOD holdout.
 No test for Cre.
 """
+
 from __future__ import annotations
 
-import json
 import pickle
 from pathlib import Path
 
@@ -37,7 +37,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-MODEL_DIR    = Path("/data/models")
+MODEL_DIR = Path("/data/models")
 HOLDOUT_FEAT = Path("/data/validation/holdout_features.parquet")
 
 pytestmark = pytest.mark.skipif(
@@ -49,6 +49,7 @@ pytestmark = pytest.mark.skipif(
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="module")
 def models():
@@ -82,6 +83,7 @@ def _predict(accession: str, models):
 # ---------------------------------------------------------------------------
 # Tier-A tests (pre-registered, must pass)
 # ---------------------------------------------------------------------------
+
 
 def test_is110_tier_a(models):
     tier_a, conf, composite = _predict("A0A7C9VKZ0", models)
@@ -120,9 +122,13 @@ def test_tn5_tier_a(models):
 # Tier-B tests (xfail -- UNKNOWN for all probes, small training N)
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(reason="Tier-B UNKNOWN for all probes; sub-class training N too small (acceptable per label_taxonomy.yaml)")
+
+@pytest.mark.xfail(  # noqa: E501
+    reason="Tier-B UNKNOWN for all probes; sub-class training N too small (acceptable per label_taxonomy.yaml)"
+)
 def test_fanzor_tier_b(models):
     from mech_class.api import Predictor
+
     pred = Predictor.load(model_dir=MODEL_DIR).predict_from_accession("Q8I6T1")
     assert pred.tier_b == "N2_Fanzor_OMEGA"
 
@@ -130,6 +136,7 @@ def test_fanzor_tier_b(models):
 @pytest.mark.xfail(reason="Tier-B UNKNOWN for all probes; sub-class training N too small")
 def test_cas9_tier_b(models):
     from mech_class.api import Predictor
+
     pred = Predictor.load(model_dir=MODEL_DIR).predict_from_accession("Q99ZW2")
     assert pred.tier_b == "N1_CRISPR_Cas"
 
@@ -137,6 +144,7 @@ def test_cas9_tier_b(models):
 @pytest.mark.xfail(reason="Tier-B UNKNOWN for all probes; sub-class training N too small")
 def test_bxb1_tier_b(models):
     from mech_class.api import Predictor
+
     pred = Predictor.load(model_dir=MODEL_DIR).predict_from_accession("Q9B086")
     assert pred.tier_b == "B3_Programmable_Recombinase"
 
@@ -144,6 +152,7 @@ def test_bxb1_tier_b(models):
 @pytest.mark.xfail(reason="Tier-B UNKNOWN for all probes; sub-class training N too small")
 def test_tn5_tier_b(models):
     from mech_class.api import Predictor
+
     pred = Predictor.load(model_dir=MODEL_DIR).predict_from_accession("Q46731")
     assert pred.tier_b == "T1_DDE_Transposase"
 
@@ -152,9 +161,10 @@ def test_tn5_tier_b(models):
 # Composite head tests (xfail for Cas9 FP -- documented limitation)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.xfail(
     reason="SpCas9 composite=True (FP, P=0.753) -- documented in MODEL_CARD.md. "
-           "Composite head over-fires on proteins with >=4 whitelist Pfam domains."
+    "Composite head over-fires on proteins with >=4 whitelist Pfam domains."
 )
 def test_cas9_composite_false(models):
     _, _, composite = _predict("Q99ZW2", models)

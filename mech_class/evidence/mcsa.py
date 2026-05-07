@@ -5,6 +5,7 @@ API docs: https://www.ebi.ac.uk/thornton-srv/m-csa/api/
 and catalytic residue assignments linked to PDB and UniProt.
 Evidence weight: 1.0 (highest — hand-curated primary mechanism data).
 """
+
 from __future__ import annotations
 
 import time
@@ -20,18 +21,23 @@ MCSA_API = "https://www.ebi.ac.uk/thornton-srv/m-csa/api"
 # Only EC classes that appear in our study domain. Entries not matching any
 # prefix are left as UNKNOWN and will be filtered by the aggregator.
 EC_TO_TIER_A: list[tuple[str, str]] = [
-    ("3.1.21", "DSB_NUCLEASE"),   # endodeoxyribonucleases (Cas9, Cas12, restriction)
-    ("3.1.22", "DSB_NUCLEASE"),   # exodeoxyribonucleases
-    ("3.1.30", "DSB_NUCLEASE"),   # endo/exo phosphodiesterases (generic)
-    ("3.1.4",  "DSB_NUCLEASE"),   # phosphoric diester hydrolases
-    ("3.1.11", "DSB_NUCLEASE"),   # exodeoxyribonucleases on ss DNA
-    ("3.1.13", "DSB_NUCLEASE"),   # exoribonucleases (RNA-guided)
+    ("3.1.21", "DSB_NUCLEASE"),  # endodeoxyribonucleases (Cas9, Cas12, restriction)
+    ("3.1.22", "DSB_NUCLEASE"),  # exodeoxyribonucleases
+    ("3.1.30", "DSB_NUCLEASE"),  # endo/exo phosphodiesterases (generic)
+    ("3.1.4", "DSB_NUCLEASE"),  # phosphoric diester hydrolases
+    ("3.1.11", "DSB_NUCLEASE"),  # exodeoxyribonucleases on ss DNA
+    ("3.1.13", "DSB_NUCLEASE"),  # exoribonucleases (RNA-guided)
 ]
 
 # Mechanism text keywords for recombinase/transposase disambiguation.
 # Applied when EC is ambiguous (2.7.7.*) or absent.
-TRANSEST_KEYWORDS = ("transesterif", "tyrosine nucleophile", "serine nucleophile",
-                     "phosphotyrosine", "phosphoserine covalent")
+TRANSEST_KEYWORDS = (
+    "transesterif",
+    "tyrosine nucleophile",
+    "serine nucleophile",
+    "phosphotyrosine",
+    "phosphoserine covalent",
+)
 TRANSPOSASE_KEYWORDS = ("DDE", "transposase", "cut-and-paste")
 
 
@@ -82,17 +88,19 @@ def parse_entry(e: dict) -> list[dict]:
 
     tier_a = _infer_tier_a(ec, mechanism)
     for prot in sequences:
-        rows.append({
-            "source": "M-CSA",
-            "mcsa_id": e.get("mcsa_id"),
-            "uniprot_acc": prot.get("uniprot_id"),
-            "ec_number": ec,
-            "mechanism_text": mechanism[:1000],
-            "inferred_tier_a": tier_a,
-            "pdb_codes": pdb_refs,
-            "evidence_weight": 1.0,
-            "is_reference": prot.get("is_reference", False),
-        })
+        rows.append(
+            {
+                "source": "M-CSA",
+                "mcsa_id": e.get("mcsa_id"),
+                "uniprot_acc": prot.get("uniprot_id"),
+                "ec_number": ec,
+                "mechanism_text": mechanism[:1000],
+                "inferred_tier_a": tier_a,
+                "pdb_codes": pdb_refs,
+                "evidence_weight": 1.0,
+                "is_reference": prot.get("is_reference", False),
+            }
+        )
     return rows
 
 

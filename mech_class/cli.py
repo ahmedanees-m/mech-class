@@ -1,4 +1,5 @@
 """CLI for mech-class."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -14,14 +15,21 @@ def main() -> None:
 
 @main.command()
 @click.argument("fasta_file", type=click.Path(exists=True))
-@click.option("--model-dir", "-m", type=click.Path(), required=True,
-              help="Directory containing trained tier_a.pkl, tier_b.pkl, composite.pkl.")
-@click.option("--output", "-o", default="predictions.parquet",
-              help="Output Parquet file (default: predictions.parquet).")
+@click.option(
+    "--model-dir",
+    "-m",
+    type=click.Path(),
+    required=True,
+    help="Directory containing trained tier_a.pkl, tier_b.pkl, composite.pkl.",
+)
+@click.option(
+    "--output", "-o", default="predictions.parquet", help="Output Parquet file (default: predictions.parquet)."
+)
 @click.option("--device", default="cpu", help="Inference device: cpu or cuda.")
 def predict(fasta_file: str, model_dir: str, output: str, device: str) -> None:
     """Predict mechanism class for all sequences in a FASTA file."""
     import pandas as pd
+
     from mech_class.api import Predictor
 
     click.echo(f"Loading models from {model_dir}...")

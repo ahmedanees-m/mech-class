@@ -5,16 +5,18 @@ Wraps ``lgb.LGBMClassifier`` with:
  - Bootstrap confidence intervals for macro-F1
  - save / load as plain pickle
 """
+
 from __future__ import annotations
 
 import pickle
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Optional, Sequence, Tuple
 
 import numpy as np
 
 try:
     import lightgbm as lgb
+
     _LGBM_AVAILABLE = True
 except ImportError:  # pragma: no cover
     _LGBM_AVAILABLE = False
@@ -44,9 +46,7 @@ class LightGBMClassifier:
         **lgb_kwargs,
     ):
         if not _LGBM_AVAILABLE:
-            raise ImportError(
-                "lightgbm is required: pip install mech-class[dev]"
-            )
+            raise ImportError("lightgbm is required: pip install mech-class[dev]")
         self.classes_ = list(classes)
         self.random_state = random_state
         self._model = lgb.LGBMClassifier(
@@ -63,7 +63,7 @@ class LightGBMClassifier:
     # Fit / predict
     # ------------------------------------------------------------------
 
-    def fit(self, X: np.ndarray, y: np.ndarray) -> "LightGBMClassifier":
+    def fit(self, X: np.ndarray, y: np.ndarray) -> LightGBMClassifier:
         """Fit the classifier.
 
         Parameters
@@ -86,7 +86,7 @@ class LightGBMClassifier:
             proba = proba.reshape(-1, len(self.classes_))
         return proba.astype(np.float32)
 
-    def predict_proba_top(self, x: np.ndarray) -> Tuple[str, float]:
+    def predict_proba_top(self, x: np.ndarray) -> tuple[str, float]:
         """Return (top_class_label, confidence) for a single sample.
 
         Parameters
@@ -111,7 +111,7 @@ class LightGBMClassifier:
         *,
         n_bootstrap: int = 1000,
         seed: int = 42,
-    ) -> Tuple[float, float, float]:
+    ) -> tuple[float, float, float]:
         """Compute macro-F1 with bootstrap 95% CI.
 
         Returns
@@ -128,9 +128,7 @@ class LightGBMClassifier:
         scores = []
         for _ in range(n_bootstrap):
             idx = rng.integers(0, n, size=n)
-            s = float(
-                f1_score(y[idx], preds[idx], average="macro", zero_division=0)
-            )
+            s = float(f1_score(y[idx], preds[idx], average="macro", zero_division=0))
             scores.append(s)
 
         scores.sort()
@@ -154,7 +152,7 @@ class LightGBMClassifier:
             pickle.dump(self, f)
 
     @classmethod
-    def load(cls, path: str | Path) -> "LightGBMClassifier":
+    def load(cls, path: str | Path) -> LightGBMClassifier:
         """Load a previously saved :class:`LightGBMClassifier`."""
         with open(path, "rb") as f:
             obj = pickle.load(f)

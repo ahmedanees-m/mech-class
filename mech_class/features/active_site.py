@@ -11,12 +11,12 @@ at the active-site residues. Below this threshold, the F_active_site vector
 is zero-filled and a `plddt_low` flag is set in the feature vector — this
 propagates to the ablation study and to PEN-SCORE's confidence penalties.
 """
+
 from __future__ import annotations
 
 import gzip
 import io
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 
@@ -53,7 +53,7 @@ def get_ca_coordinates(pdb_path: Path, residue_ids: list[int]) -> dict[int, np.n
 def get_dssp_at_residues(pdb_path: Path, residue_ids: list[int]) -> dict[int, str]:
     """Get DSSP secondary structure codes at specific residues."""
     try:
-        from Bio.PDB import PDBParser, DSSP
+        from Bio.PDB import DSSP, PDBParser
 
         parser = PDBParser(QUIET=True)
         with _open_pdb(pdb_path) as fh:
@@ -61,7 +61,7 @@ def get_dssp_at_residues(pdb_path: Path, residue_ids: list[int]) -> dict[int, st
         model = list(structure)[0]
         dssp = DSSP(model, str(pdb_path))
         result: dict[int, str] = {}
-        for (chain_id, res_id), vals in dssp.property_dict.items():
+        for (_chain_id, res_id), vals in dssp.property_dict.items():
             if res_id[1] in residue_ids:
                 result[res_id[1]] = vals[2]  # secondary structure code
         return result
@@ -115,7 +115,7 @@ def extract_active_site_features(
 
     if not plddt_ok:
         # Zero-fill with pLDDT flag set
-        features[ACTIVE_SITE_DIM - 1] = 1.0   # plddt_low_flag
+        features[ACTIVE_SITE_DIM - 1] = 1.0  # plddt_low_flag
         return features, False
 
     # Cα pairwise distances (features 1–10 for up to 5 catalytic residues → 10 pairs)
@@ -129,7 +129,7 @@ def extract_active_site_features(
             ri, rj = res_list[i], res_list[j]
             if ri in coords and rj in coords:
                 dist = float(np.linalg.norm(coords[ri] - coords[rj]))
-                features[feat_idx] = dist / 30.0   # normalize by ~max catalytic distance
+                features[feat_idx] = dist / 30.0  # normalize by ~max catalytic distance
             feat_idx += 1
 
     # DSSP secondary structure at catalytic residues (features 11–15: helix/strand/loop)

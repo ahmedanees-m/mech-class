@@ -19,6 +19,7 @@ Why the redesign (verified 2026-05):
 Evidence weight: 0.8 (lower than M-CSA because reaction-level annotation,
 not step-by-step mechanism characterization).
 """
+
 from __future__ import annotations
 
 import time
@@ -45,23 +46,29 @@ RHEA_QUERIES = [
 # EC 3.1.x = phosphodiester bond hydrolases (nucleases)
 # EC 2.7.7.x = nucleotidyltransferases (some repair enzymes)
 EC_TO_TIER_A: list[tuple[str, str]] = [
-    ("3.1.21", "DSB_NUCLEASE"),   # type I, II, III DNA restriction endonucleases
-    ("3.1.22", "DSB_NUCLEASE"),   # ssDNA endonucleases
-    ("3.1.30", "DSB_NUCLEASE"),   # S1 nucleases
-    ("3.1.4",  "DSB_NUCLEASE"),   # phosphodiesterases
-    ("3.1.11", "DSB_NUCLEASE"),   # exodeoxyribonucleases
-    ("3.1.13", "DSB_NUCLEASE"),   # exoribonucleases
-    ("3.1.26", "DSB_NUCLEASE"),   # ribonucleases H
-    ("3.1.25", "DSB_NUCLEASE"),   # AP endonucleases / site-specific
+    ("3.1.21", "DSB_NUCLEASE"),  # type I, II, III DNA restriction endonucleases
+    ("3.1.22", "DSB_NUCLEASE"),  # ssDNA endonucleases
+    ("3.1.30", "DSB_NUCLEASE"),  # S1 nucleases
+    ("3.1.4", "DSB_NUCLEASE"),  # phosphodiesterases
+    ("3.1.11", "DSB_NUCLEASE"),  # exodeoxyribonucleases
+    ("3.1.13", "DSB_NUCLEASE"),  # exoribonucleases
+    ("3.1.26", "DSB_NUCLEASE"),  # ribonucleases H
+    ("3.1.25", "DSB_NUCLEASE"),  # AP endonucleases / site-specific
 ]
 
 TRANSEST_NAME_KEYWORDS = (
-    "recombinase", "integrase", "transesterase",
-    "site-specific", "strand exchange", "tyrosine recombinase",
+    "recombinase",
+    "integrase",
+    "transesterase",
+    "site-specific",
+    "strand exchange",
+    "tyrosine recombinase",
     "serine recombinase",
 )
 TRANSPOSASE_NAME_KEYWORDS = (
-    "transposase", "IS element", "DDE transposase",
+    "transposase",
+    "IS element",
+    "DDE transposase",
 )
 
 
@@ -80,6 +87,7 @@ def _infer_tier_a_rhea(ec: str, protein_name: str) -> str:
     if "nuclease" in name_lower or "endonuclease" in name_lower:
         return "DSB_NUCLEASE"
     return "UNKNOWN"
+
 
 # Maximum Rhea IDs to carry forward per query (avoid unbounded UniProt calls).
 MAX_RHEA_IDS = 50
@@ -134,13 +142,13 @@ def fetch_uniprot_for_rhea(rhea_id: str) -> list[dict]:
 def parse_uniprot_entry(entry: dict, rhea_id: str) -> dict:
     acc = entry.get("primaryAccession") or ""
     # Extract EC number from nested proteinDescription structure
-    desc = (entry.get("proteinDescription") or {})
+    desc = entry.get("proteinDescription") or {}
     rec = desc.get("recommendedName") or {}
     ec_list_items = rec.get("ecNumbers") or []
     ec = ",".join(e.get("value", "") for e in ec_list_items)
 
     protein_name = ""
-    desc = (entry.get("proteinDescription") or {})
+    desc = entry.get("proteinDescription") or {}
     rec = desc.get("recommendedName") or {}
     full_name = rec.get("fullName") or {}
     protein_name = full_name.get("value") or ""
@@ -183,9 +191,20 @@ def main(output: Path = Path("/data/labels/evidence/rhea.parquet")) -> None:
                 seen_accs.add(acc)
                 all_rows.append(row)
 
-    df = pd.DataFrame(all_rows) if all_rows else pd.DataFrame(
-        columns=["source", "rhea_id", "uniprot_acc", "ec_number", "protein_name",
-                 "inferred_tier_a", "evidence_weight"]
+    df = (
+        pd.DataFrame(all_rows)
+        if all_rows
+        else pd.DataFrame(
+            columns=[
+                "source",
+                "rhea_id",
+                "uniprot_acc",
+                "ec_number",
+                "protein_name",
+                "inferred_tier_a",
+                "evidence_weight",
+            ]
+        )
     )
     df = df[df["uniprot_acc"].notna() & (df["uniprot_acc"] != "")]
     # Drop rows where tier_a could not be inferred (no evidence value to aggregator)

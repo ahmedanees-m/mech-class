@@ -9,6 +9,6 @@ try:
 except ImportError:
     __version__ = "unknown"
 
-from mech_class.api import Predictor, Prediction
+from mech_class.api import Prediction, Predictor
 
 __all__ = ["__version__", "Predictor", "Prediction"]

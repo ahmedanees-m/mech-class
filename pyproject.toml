@@ -66,12 +66,32 @@ write_to = "mech_class/_version.py"
 fallback_version = "0.5.0"
 
 [tool.ruff]
-line-length = 100
+line-length = 120
 target-version = "py310"
-select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM"]
-ignore = ["D100", "D104", "D203", "D213"]
 
-[tool.ruff.pydocstyle]
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM"]
+ignore = [
+    "D100", "D104", "D203", "D213",
+    # ML/numpy convention: uppercase X, X_df, X_comp etc. are standard matrix names
+    "N806",
+    # ML/sklearn convention: X is the standard feature-matrix argument name
+    "N803",
+    # CamelCase imported as private alias (_MLP, _LGB, etc.)
+    "N814",
+    # warnings.warn stacklevel — many callers are internal utilities
+    "B028",
+    # zip() strict= not needed for internal paired arrays
+    "B905",
+    # SIM105 contextlib.suppress — explicit try/except is clearer here
+    "SIM105",
+    # SIM108 ternary: readability preference kept as-is
+    "SIM108",
+    # B904 raise-from inside except: pre-existing style
+    "B904",
+]
+
+[tool.ruff.lint.pydocstyle]
 convention = "numpy"
 
 [tool.mypy]

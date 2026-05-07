@@ -11,6 +11,7 @@ REST API. Evidence is derived entirely from:
 
 Evidence weight: 0.7 for IS-family annotations.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -22,16 +23,16 @@ from rich.progress import track
 IS_FAMILY_MECHANISM: dict[str, tuple[str, str, bool]] = {
     # family: (tier_a, tier_b, composite)
     "IS110": ("DSB_FREE_TRANSEST_RECOMBINASE", "B3_Programmable_Recombinase", True),
-    "IS1111":("DSB_FREE_TRANSEST_RECOMBINASE", "B3_Programmable_Recombinase", True),
-    "IS3":   ("TRANSPOSASE",                   "T1_DDE_Transposase",          False),
-    "IS4":   ("TRANSPOSASE",                   "T1_DDE_Transposase",          False),
-    "IS5":   ("TRANSPOSASE",                   "T1_DDE_Transposase",          False),
-    "IS10":  ("TRANSPOSASE",                   "T1_DDE_Transposase",          False),
-    "IS50":  ("TRANSPOSASE",                   "T1_DDE_Transposase",          False),
-    "IS200": ("DSB_NUCLEASE",                  "N2_Fanzor_OMEGA",             False),  # TnpB/Fanzor ancestor
-    "IS605": ("DSB_NUCLEASE",                  "N2_Fanzor_OMEGA",             False),
-    "IS630": ("DSB_FREE_TRANSEST_RECOMBINASE", "B4_Tyrosine_Recombinase",     False),
-    "IS982": ("DSB_FREE_TRANSEST_RECOMBINASE", "B4_Tyrosine_Recombinase",     False),
+    "IS1111": ("DSB_FREE_TRANSEST_RECOMBINASE", "B3_Programmable_Recombinase", True),
+    "IS3": ("TRANSPOSASE", "T1_DDE_Transposase", False),
+    "IS4": ("TRANSPOSASE", "T1_DDE_Transposase", False),
+    "IS5": ("TRANSPOSASE", "T1_DDE_Transposase", False),
+    "IS10": ("TRANSPOSASE", "T1_DDE_Transposase", False),
+    "IS50": ("TRANSPOSASE", "T1_DDE_Transposase", False),
+    "IS200": ("DSB_NUCLEASE", "N2_Fanzor_OMEGA", False),  # TnpB/Fanzor ancestor
+    "IS605": ("DSB_NUCLEASE", "N2_Fanzor_OMEGA", False),
+    "IS630": ("DSB_FREE_TRANSEST_RECOMBINASE", "B4_Tyrosine_Recombinase", False),
+    "IS982": ("DSB_FREE_TRANSEST_RECOMBINASE", "B4_Tyrosine_Recombinase", False),
 }
 
 # Composite architecture note for IS110
@@ -65,33 +66,37 @@ def main(
             if not matched_family:
                 continue
             tier_a, tier_b, composite = IS_FAMILY_MECHANISM[matched_family]
-            rows.append({
-                "source": "TnPedia_ISfinder",
-                "uniprot_acc": r.get("uniprot_acc"),
-                "is_family": family,
-                "matched_family": matched_family,
-                "inferred_tier_a": tier_a,
-                "inferred_tier_b": tier_b,
-                "composite_architecture": composite,
-                "composite_note": IS110_COMPOSITE_NOTE if composite else "",
-                "evidence_weight": 0.7,
-            })
+            rows.append(
+                {
+                    "source": "TnPedia_ISfinder",
+                    "uniprot_acc": r.get("uniprot_acc"),
+                    "is_family": family,
+                    "matched_family": matched_family,
+                    "inferred_tier_a": tier_a,
+                    "inferred_tier_b": tier_b,
+                    "composite_architecture": composite,
+                    "composite_note": IS110_COMPOSITE_NOTE if composite else "",
+                    "evidence_weight": 0.7,
+                }
+            )
     else:
         print(f"ISfinder Parquet not found at {isfinder_path}; skipping ISfinder rows.")
 
     # Also add curated anchor rows for IS110 and IS1111 from the canonical literature
     for family, (tier_a, tier_b, composite) in IS_FAMILY_MECHANISM.items():
-        rows.append({
-            "source": "TnPedia_curated",
-            "uniprot_acc": None,  # family-level, not protein-level
-            "is_family": family,
-            "matched_family": family,
-            "inferred_tier_a": tier_a,
-            "inferred_tier_b": tier_b,
-            "composite_architecture": composite,
-            "composite_note": IS110_COMPOSITE_NOTE if composite else "",
-            "evidence_weight": 0.7,
-        })
+        rows.append(
+            {
+                "source": "TnPedia_curated",
+                "uniprot_acc": None,  # family-level, not protein-level
+                "is_family": family,
+                "matched_family": family,
+                "inferred_tier_a": tier_a,
+                "inferred_tier_b": tier_b,
+                "composite_architecture": composite,
+                "composite_note": IS110_COMPOSITE_NOTE if composite else "",
+                "evidence_weight": 0.7,
+            }
+        )
 
     df = pd.DataFrame(rows)
     output.parent.mkdir(parents=True, exist_ok=True)

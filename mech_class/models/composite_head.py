@@ -3,16 +3,17 @@
 Wraps ``lgb.LGBMClassifier`` for binary classification (composite=1 vs 0).
 Exposes threshold-controllable predict methods and a false-positive rate helper.
 """
+
 from __future__ import annotations
 
 import pickle
 from pathlib import Path
-from typing import List, Tuple
 
 import numpy as np
 
 try:
     import lightgbm as lgb
+
     _LGBM_AVAILABLE = True
 except ImportError:  # pragma: no cover
     _LGBM_AVAILABLE = False
@@ -38,9 +39,7 @@ class CompositeHead:
         n_estimators: int = 200,
     ):
         if not _LGBM_AVAILABLE:
-            raise ImportError(
-                "lightgbm is required: pip install mech-class[dev]"
-            )
+            raise ImportError("lightgbm is required: pip install mech-class[dev]")
         self._seed = seed
         self._threshold = threshold
         self._model = lgb.LGBMClassifier(
@@ -55,7 +54,7 @@ class CompositeHead:
     # Fit
     # ------------------------------------------------------------------
 
-    def fit(self, X: np.ndarray, y: np.ndarray) -> "CompositeHead":
+    def fit(self, X: np.ndarray, y: np.ndarray) -> CompositeHead:
         """Fit the binary classifier.
 
         Parameters
@@ -85,7 +84,7 @@ class CompositeHead:
     # Single-sample prediction
     # ------------------------------------------------------------------
 
-    def predict(self, x: np.ndarray) -> Tuple[bool, List[str]]:
+    def predict(self, x: np.ndarray) -> tuple[bool, list[str]]:
         """Predict composite flag for a single sample.
 
         Parameters
@@ -101,7 +100,7 @@ class CompositeHead:
         row = x.reshape(1, -1)
         prob = float(self.predict_proba_batch(row)[0])
         composite = prob >= self._threshold
-        evidence: List[str] = []
+        evidence: list[str] = []
         if composite:
             evidence.append(f"composite_prob={prob:.3f}")
         return bool(composite), evidence
@@ -159,7 +158,7 @@ class CompositeHead:
             pickle.dump(self, f)
 
     @classmethod
-    def load(cls, path: str | Path) -> "CompositeHead":
+    def load(cls, path: str | Path) -> CompositeHead:
         """Load a previously saved :class:`CompositeHead`."""
         with open(path, "rb") as f:
             obj = pickle.load(f)

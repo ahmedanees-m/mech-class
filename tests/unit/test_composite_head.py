@@ -8,6 +8,7 @@ Uses the actual API:
   head.predict_proba_batch(X)      — returns probability of composite=True
   head.fp_rate(X, y)               — false positive rate on negatives
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -30,7 +31,7 @@ def _make_binary_data(n_pos: int = 15, n_neg: int = 45, n_features: int = 20):
 
 class TestCompositeHead:
     def setup_method(self):
-        self.head = CompositeHead(seed=42)   # parameter is `seed`, not `random_seed`
+        self.head = CompositeHead(seed=42)  # parameter is `seed`, not `random_seed`
         self.X, self.y = _make_binary_data()
 
     def test_fit_predict_batch(self):

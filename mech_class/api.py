@@ -17,12 +17,11 @@ Usage:
     pred = predictor.predict_from_sequence("Q99ZW2", "MDKKY...")
     print(pred.tier_a, pred.composite, pred.composite_prob)
 """
+
 from __future__ import annotations
 
 import pickle
-import time
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -31,10 +30,29 @@ from pydantic import BaseModel
 
 # Pfam whitelist — identical to training (dom_0..dom_22)
 PFAM_WHITELIST = [
-    "PF13395", "PF18541", "PF16595", "PF18516", "PF01548", "PF02371",
-    "PF07282", "PF00665", "PF01609", "PF13586", "PF08721", "PF11426",
-    "PF05621", "PF00589", "PF00239", "PF07508", "PF01844", "PF02486",
-    "PF18061", "PF16592", "PF16593", "PF13639", "PF03377",
+    "PF13395",
+    "PF18541",
+    "PF16595",
+    "PF18516",
+    "PF01548",
+    "PF02371",
+    "PF07282",
+    "PF00665",
+    "PF01609",
+    "PF13586",
+    "PF08721",
+    "PF11426",
+    "PF05621",
+    "PF00589",
+    "PF00239",
+    "PF07508",
+    "PF01844",
+    "PF02486",
+    "PF18061",
+    "PF16592",
+    "PF16593",
+    "PF13639",
+    "PF03377",
 ]
 
 # Zenodo deposit URL for trained model artifacts (v1.0 release)
@@ -50,8 +68,8 @@ class Prediction(BaseModel):
     sequence_length: int
     tier_a: str
     tier_a_confidence: float
-    tier_b: Optional[str] = None
-    tier_b_confidence: Optional[float] = None
+    tier_b: str | None = None
+    tier_b_confidence: float | None = None
     composite: bool = False
     composite_prob: float = 0.0
     composite_evidence: list[str] = []
@@ -66,10 +84,7 @@ class Prediction(BaseModel):
         """One-line human-readable summary."""
         comp = f" [COMPOSITE P={self.composite_prob:.3f}]" if self.composite else ""
         tb = f" / {self.tier_b}" if self.tier_b else ""
-        return (
-            f"{self.accession}: {self.tier_a}{tb} "
-            f"(conf={self.tier_a_confidence:.3f}){comp}"
-        )
+        return f"{self.accession}: {self.tier_a}{tb} (conf={self.tier_a_confidence:.3f}){comp}"
 
 
 class Predictor:
@@ -98,7 +113,7 @@ class Predictor:
         self._ta = _ta
         self._comp = _comp
         self._tier_b = _tier_b
-        self._esm2 = None   # loaded lazily
+        self._esm2 = None  # loaded lazily
 
     # ------------------------------------------------------------------
     # Construction
@@ -107,10 +122,10 @@ class Predictor:
     @classmethod
     def load(
         cls,
-        model_dir: Optional[str | Path] = None,
+        model_dir: str | Path | None = None,
         *,
         download: bool = True,
-    ) -> "Predictor":
+    ) -> Predictor:
         """Load trained models from a local directory.
 
         Parameters
@@ -129,7 +144,7 @@ class Predictor:
                 _download_from_zenodo(Path(model_dir))
         model_dir = Path(model_dir)
 
-        ta_path   = model_dir / "tier_a" / "model.pkl"
+        ta_path = model_dir / "tier_a" / "model.pkl"
         comp_path = model_dir / "composite_head" / "model.pkl"
 
         if not ta_path.exists():
@@ -160,11 +175,11 @@ class Predictor:
 
     def predict_from_sequence(
         self,
-        accession: Optional[str],
+        accession: str | None,
         sequence: str,
         *,
-        pfam_hits: Optional[list[str]] = None,
-        pdb_path: Optional[str | Path] = None,
+        pfam_hits: list[str] | None = None,
+        pdb_path: str | Path | None = None,
     ) -> Prediction:
         """Predict mechanism from protein sequence.
 
@@ -212,16 +227,16 @@ class Predictor:
         X_df = _build_feature_row(seq_emb, pfam_hits, feat_cols)
 
         # --- Tier-A prediction ------------------------------------------
-        proba_a   = self._ta["model"].predict_proba(X_df)[0]
-        pred_idx  = int(np.argmax(proba_a))
-        tier_a    = self._ta["label_encoder"].inverse_transform([pred_idx])[0]
+        proba_a = self._ta["model"].predict_proba(X_df)[0]
+        pred_idx = int(np.argmax(proba_a))
+        tier_a = self._ta["label_encoder"].inverse_transform([pred_idx])[0]
         tier_a_cf = float(proba_a[pred_idx])
 
         # --- Composite head ---------------------------------------------
         comp_feat_cols = self._comp.get("feature_cols") or feat_cols
-        X_comp         = X_df[comp_feat_cols] if comp_feat_cols else X_df
-        comp_proba     = self._comp["model"].predict_proba(X_comp)[0]
-        composite      = bool(comp_proba[1] >= 0.5)
+        X_comp = X_df[comp_feat_cols] if comp_feat_cols else X_df
+        comp_proba = self._comp["model"].predict_proba(X_comp)[0]
+        composite = bool(comp_proba[1] >= 0.5)
         composite_prob = float(comp_proba[1])
 
         # Build composite evidence strings
@@ -236,15 +251,15 @@ class Predictor:
                 comp_ev.append(f"Composite score P={composite_prob:.3f} (multi-domain heuristic)")
 
         # --- Tier-B prediction ------------------------------------------
-        tier_b_label: Optional[str] = None
-        tier_b_cf:    Optional[float] = None
+        tier_b_label: str | None = None
+        tier_b_cf: float | None = None
         if tier_a in self._tier_b:
-            tb     = self._tier_b[tier_a]
-            X_tb   = X_df[tb["feature_cols"]] if tb.get("feature_cols") else X_df
-            pb_b   = tb["model"].predict_proba(X_tb)[0]
-            idx_b  = int(np.argmax(pb_b))
+            tb = self._tier_b[tier_a]
+            X_tb = X_df[tb["feature_cols"]] if tb.get("feature_cols") else X_df
+            pb_b = tb["model"].predict_proba(X_tb)[0]
+            idx_b = int(np.argmax(pb_b))
             tier_b_label = tb["label_encoder"].inverse_transform([idx_b])[0]
-            tier_b_cf    = float(pb_b[idx_b])
+            tier_b_cf = float(pb_b[idx_b])
 
         if pfam_hits:
             channels_used.append("F_domain")
@@ -279,7 +294,7 @@ class Predictor:
         self,
         df: pd.DataFrame,
         *,
-        pfam_col: Optional[str] = "pfam_hits",
+        pfam_col: str | None = "pfam_hits",
     ) -> pd.DataFrame:
         """Predict for a DataFrame with columns: accession, sequence [, pfam_hits].
 
@@ -294,7 +309,7 @@ class Predictor:
         results = []
         for _, row in df.iterrows():
             pfam = row[pfam_col] if (pfam_col and pfam_col in row.index) else None
-            if isinstance(pfam, float):   # NaN → None
+            if isinstance(pfam, float):  # NaN → None
                 pfam = None
             p = self.predict_from_sequence(
                 row.get("accession"),
@@ -308,7 +323,7 @@ class Predictor:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _embed_sequence(self, sequence: str) -> Optional[np.ndarray]:
+    def _embed_sequence(self, sequence: str) -> np.ndarray | None:
         """Return ESM-2 150M mean-pool embedding, or None on failure."""
         if self._esm2 is None:
             self._esm2 = _load_esm2_singleton()
@@ -317,6 +332,7 @@ class Predictor:
         model, alphabet, batch_converter = self._esm2
         try:
             import torch
+
             seq = sequence[:1022]
             _, _, tokens = batch_converter([("q", seq)])
             with torch.no_grad():
@@ -325,6 +341,7 @@ class Predictor:
             return emb.cpu().numpy().astype(np.float32)
         except Exception as exc:
             import warnings
+
             warnings.warn(f"ESM-2 embedding failed ({exc}); F_seq zero-filled.")
             return None
 
@@ -343,6 +360,7 @@ def _load_esm2_singleton():
         return _ESM2_SINGLETON
     try:
         import esm as fair_esm
+
         model, alphabet = fair_esm.pretrained.esm2_t30_150M_UR50D()
         model = model.eval()
         batch_converter = alphabet.get_batch_converter()
@@ -387,7 +405,7 @@ def _build_feature_row(
       dom_25          ← single-domain flag
       as_0..6         ← zero-filled (active-site geometry)
     """
-    row     = np.zeros(len(feat_cols), dtype=np.float32)
+    row = np.zeros(len(feat_cols), dtype=np.float32)
     col_map = {c: i for i, c in enumerate(feat_cols)}
 
     # F_seq channel
@@ -397,7 +415,7 @@ def _build_feature_row(
             row[col_map[c]] = float(v)
 
     # F_domain channel
-    pfam_set  = set(pfam_hits)
+    pfam_set = set(pfam_hits)
     wl_hits: list[str] = []
     for wl_idx, pfam in enumerate(PFAM_WHITELIST):
         c = f"dom_{wl_idx}"
@@ -407,9 +425,7 @@ def _build_feature_row(
 
     # IS110 composite flag (dom_23)
     if "dom_23" in col_map:
-        row[col_map["dom_23"]] = float(
-            "PF01548" in pfam_set and "PF02371" in pfam_set
-        )
+        row[col_map["dom_23"]] = float("PF01548" in pfam_set and "PF02371" in pfam_set)
     # dom_24 = editor fusion (zero; reserved for future)
     # Single-domain flag (dom_25)
     if "dom_25" in col_map:

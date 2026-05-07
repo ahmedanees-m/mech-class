@@ -13,15 +13,13 @@ Aggregation logic:
 Special rule: if IS110-family signal is present (TnPedia + foundational composite),
 override any InterPro CL0219→DSB_NUCLEASE inference.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 import pandas as pd
-import yaml
-from importlib.resources import files as pkg_files
 
 TIER_A_CLASSES = ["DSB_NUCLEASE", "DSB_FREE_TRANSEST_RECOMBINASE", "TRANSPOSASE"]
 
@@ -31,27 +29,29 @@ IS110_COMPOSITE_SOURCES = {"TnPedia_ISfinder", "TnPedia_curated", "Foundational_
 # High-authority sources — at least one must be present for a protein to enter
 # the gold set (auto_accept or manual_review).  Pfam-whitelist and InterPro-clan
 # rows are domain annotations only; they can corroborate but cannot alone qualify.
-HIGH_AUTHORITY_SOURCES: frozenset[str] = frozenset({
-    "M-CSA",
-    "Foundational_systems_v0.6.0",
-    "CRISPRCasdb",
-    "Rhea",
-    "UniProt_features",
-    "TnPedia_ISfinder",
-    "TnPedia_curated",
-})
+HIGH_AUTHORITY_SOURCES: frozenset[str] = frozenset(
+    {
+        "M-CSA",
+        "Foundational_systems_v0.6.0",
+        "CRISPRCasdb",
+        "Rhea",
+        "UniProt_features",
+        "TnPedia_ISfinder",
+        "TnPedia_curated",
+    }
+)
 
 # Database-family mapping for n_sources deduplication.
 # Multiple evidence rows from the same underlying database count as ONE source.
 _DB_FAMILY_PREFIXES: list[tuple[str, str]] = [
     ("Pfam_whitelist", "Pfam_whitelist"),
-    ("InterPro_clan",  "InterPro_clan"),
-    ("InterPro",       "InterPro_clan"),   # interpro.py direct rows
-    ("TnPedia",        "TnPedia"),
-    ("M-CSA",          "M-CSA"),
-    ("Foundational",   "Foundational"),
-    ("CRISPRCasdb",    "CRISPRCasdb"),
-    ("Rhea",           "Rhea"),
+    ("InterPro_clan", "InterPro_clan"),
+    ("InterPro", "InterPro_clan"),  # interpro.py direct rows
+    ("TnPedia", "TnPedia"),
+    ("M-CSA", "M-CSA"),
+    ("Foundational", "Foundational"),
+    ("CRISPRCasdb", "CRISPRCasdb"),
+    ("Rhea", "Rhea"),
     ("UniProt_features", "UniProt_features"),
 ]
 
@@ -115,7 +115,7 @@ def aggregate_protein(group: pd.DataFrame, acc: str) -> EvidenceRecord:
     rec = EvidenceRecord(uniprot_acc=acc)
 
     # Weighted vote for Tier A; track source DB families for deduplication
-    votes: dict[str, float] = {c: 0.0 for c in TIER_A_CLASSES}
+    votes: dict[str, float] = dict.fromkeys(TIER_A_CLASSES, 0.0)
     db_families: set[str] = set()
     has_high_auth: bool = False
 
@@ -146,21 +146,17 @@ def aggregate_protein(group: pd.DataFrame, acc: str) -> EvidenceRecord:
     # IS110 composite override: if any IS110-class source is present and
     # its inferred_tier_a is DSB_FREE, override InterPro CL0219→DSB_NUCLEASE
     is110_rows = group[
-        group["source"].isin(IS110_COMPOSITE_SOURCES) &
-        (group["inferred_tier_a"] == "DSB_FREE_TRANSEST_RECOMBINASE")
+        group["source"].isin(IS110_COMPOSITE_SOURCES) & (group["inferred_tier_a"] == "DSB_FREE_TRANSEST_RECOMBINASE")
     ]
     if len(is110_rows) > 0:
         rec.inferred_tier_a = "DSB_FREE_TRANSEST_RECOMBINASE"
         rec.composite_architecture = bool(
-            is110_rows["composite_architecture"].any()
-            if "composite_architecture" in is110_rows.columns else False
+            is110_rows["composite_architecture"].any() if "composite_architecture" in is110_rows.columns else False
         )
 
     # Tier B: take the tier_b from the highest-weight source
     if "inferred_tier_b" in group.columns:
-        tier_b_rows = group[group["inferred_tier_b"].notna()].sort_values(
-            "evidence_weight", ascending=False
-        )
+        tier_b_rows = group[group["inferred_tier_b"].notna()].sort_values("evidence_weight", ascending=False)
         if len(tier_b_rows):
             rec.inferred_tier_b = tier_b_rows.iloc[0]["inferred_tier_b"]
 
@@ -193,6 +189,7 @@ def load_atlas_protein_accessions(
 ) -> set[str]:
     """Return all UniProt accessions in the ATLAS (to restrict aggregation)."""
     import duckdb  # optional atlas dependency — lazy import
+
     con = duckdb.connect(duckdb_path, read_only=True)
     accs = set(con.execute("SELECT accession FROM nodes_protein").fetchdf()["accession"])
     con.close()
@@ -214,8 +211,7 @@ def main(
     try:
         atlas_accs = load_atlas_protein_accessions(atlas_db)
         evidence = evidence[evidence["uniprot_acc"].isin(atlas_accs)]
-        print(f"  After ATLAS filter: {len(evidence):,} rows, "
-              f"{evidence['uniprot_acc'].nunique():,} proteins")
+        print(f"  After ATLAS filter: {len(evidence):,} rows, {evidence['uniprot_acc'].nunique():,} proteins")
     except Exception as exc:
         print(f"  WARN: ATLAS filter failed ({exc}); proceeding without filter")
 
@@ -241,7 +237,7 @@ def main(
     n_review = (df["reviewer_action"] == "manual_review").sum()
     n_composite = df["composite_architecture"].sum()
     print(f"\nAuto-accepted: {n_auto} | Manual review: {n_review} | Composite: {n_composite}")
-    print(f"n_sources distribution (gold set):")
+    print("n_sources distribution (gold set):")
     print(gold["n_sources"].value_counts().sort_index().to_string())
 
     output.parent.mkdir(parents=True, exist_ok=True)

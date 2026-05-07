@@ -1,18 +1,17 @@
 """Data loading helpers — taxonomy, labels, features."""
+
 from __future__ import annotations
 
+from importlib.resources import files as pkg_files
 from pathlib import Path
 
 import pandas as pd
 import yaml
-from importlib.resources import files as pkg_files
 
 
 def load_taxonomy() -> dict:
     """Load the Tier A + Tier B class taxonomy."""
-    raw = yaml.safe_load(
-        pkg_files("mech_class").joinpath("data/label_taxonomy.yaml").read_text()
-    )
+    raw = yaml.safe_load(pkg_files("mech_class").joinpath("data/label_taxonomy.yaml").read_text())
     return raw
 
 
@@ -33,15 +32,11 @@ def load_mechanism_labels(path: Path) -> pd.DataFrame:
 
 def load_pfam_whitelist() -> list[dict]:
     """Load Pfam whitelist v1.2.0 from genome_atlas package data (Paper 1)."""
-    raw = yaml.safe_load(
-        pkg_files("genome_atlas").joinpath("data/pfam_whitelist.yaml").read_text()
-    )
-    return raw["domains"]   # list of dicts: accession, name, mechanism_bucket, ...
+    raw = yaml.safe_load(pkg_files("genome_atlas").joinpath("data/pfam_whitelist.yaml").read_text())
+    return raw["domains"]  # list of dicts: accession, name, mechanism_bucket, ...
 
 
 def load_foundational_systems() -> list[dict]:
     """Load foundational systems v0.6.0 from genome_atlas package data (Paper 1)."""
-    raw = yaml.safe_load(
-        pkg_files("genome_atlas").joinpath("data/foundational_systems.yaml").read_text()
-    )
-    return raw["systems"]   # list of dicts: name, mechanism_bucket, proteins[], ...
+    raw = yaml.safe_load(pkg_files("genome_atlas").joinpath("data/foundational_systems.yaml").read_text())
+    return raw["systems"]  # list of dicts: name, mechanism_bucket, proteins[], ...

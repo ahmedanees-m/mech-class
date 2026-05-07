@@ -6,6 +6,7 @@ for canonical single-domain enzymes. MECH-CLASS reports per-prediction confidenc
 weighted by mean active-site pLDDT, and down-weights F_struct / F_active_site
 channels when pLDDT < 70 in the active-site region.
 """
+
 from __future__ import annotations
 
 import gzip

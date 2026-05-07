@@ -9,16 +9,17 @@ Notes on endpoint choice (verified 2026-05):
   - /search with JSON + pagination works reliably; sequence field removed.
   - Query format: (database:Pfam AND xref:PF00000) AND reviewed:true
 """
+
 from __future__ import annotations
 
 import re
 import time
+from importlib.resources import files as pkg_files
 from pathlib import Path
 
 import pandas as pd
 import requests
 import yaml
-from importlib.resources import files as pkg_files
 from rich.progress import track
 
 UNIPROT_SEARCH = "https://rest.uniprot.org/uniprotkb/search"
@@ -27,24 +28,34 @@ PAGE_SIZE = 500
 
 MECHANISM_KEYWORDS: dict[str, list[str]] = {
     "DSB_NUCLEASE": [
-        r"\bnuclease\b", r"endonuclease", r"DNase", r"phosphodiesterase",
-        r"two-metal-ion catalysis", r"hydrolytic cleavage",
+        r"\bnuclease\b",
+        r"endonuclease",
+        r"DNase",
+        r"phosphodiesterase",
+        r"two-metal-ion catalysis",
+        r"hydrolytic cleavage",
     ],
     "DSB_FREE_TRANSEST_RECOMBINASE": [
-        r"recombinase", r"integrase", r"transesterification",
-        r"phosphoester intermediate", r"covalent serine", r"covalent tyrosine",
-        r"site-specific recombination", r"strand exchange",
+        r"recombinase",
+        r"integrase",
+        r"transesterification",
+        r"phosphoester intermediate",
+        r"covalent serine",
+        r"covalent tyrosine",
+        r"site-specific recombination",
+        r"strand exchange",
     ],
     "TRANSPOSASE": [
-        r"transposase", r"transposition", r"DDE motif", r"strand transfer",
+        r"transposase",
+        r"transposition",
+        r"DDE motif",
+        r"strand transfer",
     ],
 }
 
 
 def _load_pfam_whitelist() -> list[dict]:
-    raw = yaml.safe_load(
-        pkg_files("genome_atlas").joinpath("data/pfam_whitelist.yaml").read_text()
-    )
+    raw = yaml.safe_load(pkg_files("genome_atlas").joinpath("data/pfam_whitelist.yaml").read_text())
     return raw["domains"]
 
 
@@ -60,10 +71,7 @@ def query_pfam(pfam_acc: str) -> list[dict]:
     """
     # ft_metal is NOT a valid UniProt field (verified 2026-05).
     # xref_pfam is NOT a valid field — use xref:pfam-PF00000 in query instead.
-    fields = (
-        "accession,protein_name,organism_name,length,"
-        "ft_act_site,ft_binding"
-    )
+    fields = "accession,protein_name,organism_name,length,ft_act_site,ft_binding"
     params = {
         "format": "json",
         "query": f"(xref:pfam-{pfam_acc}) AND (reviewed:true)",
@@ -75,11 +83,9 @@ def query_pfam(pfam_acc: str) -> list[dict]:
 
     while cursor_url:
         if cursor_url == UNIPROT_SEARCH:
-            r = requests.get(cursor_url, params=params,
-                             headers={"Accept": "application/json"}, timeout=60)
+            r = requests.get(cursor_url, params=params, headers={"Accept": "application/json"}, timeout=60)
         else:
-            r = requests.get(cursor_url,
-                             headers={"Accept": "application/json"}, timeout=60)
+            r = requests.get(cursor_url, headers={"Accept": "application/json"}, timeout=60)
         r.raise_for_status()
         data = r.json()
         all_results.extend(data.get("results", []))
@@ -90,6 +96,7 @@ def query_pfam(pfam_acc: str) -> list[dict]:
         if 'rel="next"' in link_header:
             # Extract URL between < >
             import re as _re
+
             m = _re.search(r"<([^>]+)>;\s*rel=\"next\"", link_header)
             if m:
                 cursor_url = m.group(1)
@@ -125,9 +132,7 @@ def _extract_features(entry: dict, target_types: tuple[str, ...]) -> str:
     return " | ".join(parts)
 
 
-def infer_mechanism_from_features(
-    act_site: str, binding: str, name: str
-) -> tuple[str, float]:
+def infer_mechanism_from_features(act_site: str, binding: str, name: str) -> tuple[str, float]:
     """Pattern-match feature line text against mechanism keywords."""
     text = " ".join(filter(None, [act_site or "", binding or "", name or ""])).lower()
     scores: dict[str, int] = {}
@@ -161,23 +166,27 @@ def main(output: Path = Path("/data/labels/evidence/uniprot_features.parquet")) 
             # Features are in entry['features'] list; filter by 'type' field.
             # Verified types (2026-05): "Active site", "Binding site"
             act_site_text = _extract_features(entry, ("active site",))
-            binding_text  = _extract_features(entry, ("binding site",))
+            binding_text = _extract_features(entry, ("binding site",))
 
             mech, conf = infer_mechanism_from_features(
-                act_site_text, binding_text, protein_name,
+                act_site_text,
+                binding_text,
+                protein_name,
             )
             if mech == "UNKNOWN":
                 continue
-            rows.append({
-                "source": "UniProt_features",
-                "uniprot_acc": acc,
-                "pfam_acc": d["accession"],
-                "inferred_tier_a": mech,
-                "inferred_confidence": conf,
-                "act_site_text": act_site_text[:500],
-                "binding_text": binding_text[:500],
-                "evidence_weight": 0.7,
-            })
+            rows.append(
+                {
+                    "source": "UniProt_features",
+                    "uniprot_acc": acc,
+                    "pfam_acc": d["accession"],
+                    "inferred_tier_a": mech,
+                    "inferred_confidence": conf,
+                    "act_site_text": act_site_text[:500],
+                    "binding_text": binding_text[:500],
+                    "evidence_weight": 0.7,
+                }
+            )
 
     df_out = pd.DataFrame(rows)
     output.parent.mkdir(parents=True, exist_ok=True)

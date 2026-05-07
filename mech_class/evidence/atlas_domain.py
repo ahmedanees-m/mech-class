@@ -11,6 +11,7 @@ Two evidence rows are produced per protein-domain hit:
 
 Evidence weights match the hierarchy defined in LABEL_PROVENANCE.md.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -18,8 +19,7 @@ from pathlib import Path
 import duckdb
 import pandas as pd
 
-
-ATLAS_DB   = "/data/graphs/atlas.duckdb"
+ATLAS_DB = "/data/graphs/atlas.duckdb"
 INTERPRO_P = "/data/labels/evidence/interpro.parquet"
 
 
@@ -76,14 +76,13 @@ def query_composite_accs(db_path: str = ATLAS_DB) -> set[str]:
 
 
 def main(
-    atlas_db: str    = ATLAS_DB,
+    atlas_db: str = ATLAS_DB,
     interpro_path: Path = Path(INTERPRO_P),
-    output: Path     = Path("/data/labels/evidence/atlas_domain_evidence.parquet"),
+    output: Path = Path("/data/labels/evidence/atlas_domain_evidence.parquet"),
 ) -> None:
     print("Querying ATLAS domain-protein graph...")
     hits = query_atlas_domains(atlas_db)
-    print(f"  {len(hits):,} protein-domain hits, "
-          f"{hits['uniprot_acc'].nunique():,} unique proteins")
+    print(f"  {len(hits):,} protein-domain hits, {hits['uniprot_acc'].nunique():,} unique proteins")
 
     # Identify IS110-family composite proteins (PF01548 + PF02371 co-occurrence).
     # PF07282 TnpB is intentionally excluded — single-domain nuclease, not composite.
@@ -95,15 +94,17 @@ def main(
 
     # ── Layer 1: Pfam whitelist evidence (weight 0.6) ────────────────────
     for _, r in hits.iterrows():
-        rows.append({
-            "source":               "Pfam_whitelist_v1.2.0_ATLAS",
-            "uniprot_acc":          r["uniprot_acc"],
-            "pfam_acc":             r["pfam_acc"],
-            "pfam_name":            r["pfam_name"],
-            "inferred_tier_a":      r["mechanism_bucket"],
-            "composite_architecture": r["uniprot_acc"] in composite_accs,
-            "evidence_weight":      0.6,
-        })
+        rows.append(
+            {
+                "source": "Pfam_whitelist_v1.2.0_ATLAS",
+                "uniprot_acc": r["uniprot_acc"],
+                "pfam_acc": r["pfam_acc"],
+                "pfam_name": r["pfam_name"],
+                "inferred_tier_a": r["mechanism_bucket"],
+                "composite_architecture": r["uniprot_acc"] in composite_accs,
+                "evidence_weight": 0.6,
+            }
+        )
 
     # ── Layer 2: InterPro clan evidence (weight 0.5) ─────────────────────
     # IMPORTANT: Only include clan evidence that AGREES with the Pfam whitelist
@@ -114,11 +115,7 @@ def main(
     if interpro_path.exists():
         interpro = pd.read_parquet(interpro_path)
         # interpro.parquet: pfam_acc, clan_acc, inferred_tier_a
-        clan_map = (
-            interpro[interpro["inferred_tier_a"] != "UNKNOWN"]
-            .set_index("pfam_acc")["inferred_tier_a"]
-            .to_dict()
-        )
+        clan_map = interpro[interpro["inferred_tier_a"] != "UNKNOWN"].set_index("pfam_acc")["inferred_tier_a"].to_dict()
         clan_hits = hits[hits["pfam_acc"].isin(clan_map)].copy()
         n_total = len(clan_hits)
         added = 0
@@ -130,18 +127,22 @@ def main(
             if clan_tier_a != pfam_tier_a:
                 skipped_contradictions += 1
                 continue
-            rows.append({
-                "source":               "InterPro_clan_ATLAS",
-                "uniprot_acc":          r["uniprot_acc"],
-                "pfam_acc":             r["pfam_acc"],
-                "pfam_name":            r["pfam_name"],
-                "inferred_tier_a":      clan_tier_a,
-                "composite_architecture": r["uniprot_acc"] in composite_accs,
-                "evidence_weight":      0.5,
-            })
+            rows.append(
+                {
+                    "source": "InterPro_clan_ATLAS",
+                    "uniprot_acc": r["uniprot_acc"],
+                    "pfam_acc": r["pfam_acc"],
+                    "pfam_name": r["pfam_name"],
+                    "inferred_tier_a": clan_tier_a,
+                    "composite_architecture": r["uniprot_acc"] in composite_accs,
+                    "evidence_weight": 0.5,
+                }
+            )
             added += 1
-        print(f"  {n_total:,} clan hits: {added:,} added (agreement), "
-              f"{skipped_contradictions:,} skipped (clan contradicts Pfam whitelist)")
+        print(
+            f"  {n_total:,} clan hits: {added:,} added (agreement), "
+            f"{skipped_contradictions:,} skipped (clan contradicts Pfam whitelist)"
+        )
     else:
         print(f"  interpro.parquet not found at {interpro_path}; skipping clan layer")
 

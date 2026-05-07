@@ -3,10 +3,10 @@
 Tests are designed to pass without ESM-2 / fair-esm installed (CI environment).
 When ESM-2 is unavailable, functions degrade gracefully to zero vectors.
 """
+
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from mech_class.features.seq import (
     ESM2_DIM,
@@ -17,10 +17,10 @@ from mech_class.features.seq import (
     load_esm2_singleton,
 )
 
-SHORT_SEQ  = "MKTAYIAKQRQISFVKSHFSRQLEERLGLIEVQAPILSRVGDGTQDNLSGAEKAVQVKVKALPDAQFEVVHSLAKWKRQTLGQHDFSAGEGLYTHMKALRPDEDRLSPLHSVYVDQWDWERVMGDGERQFSTLKSTVEAIWAGIKATEAAVSEEFGLAPFLPDQIHFVHSQELLSRYPDLDAKGRERAIAKDLGAVFLVGIGGKLSDGHRHDVRAPDYDDWSTPSELGHAGLNGDILVWNPVLEDAFELSSMGIRVDADTLKHQLALTGEDEDTLSLQELIDAYRQQDEPQAQLATQSLGVVNSSIVTYDLSK"
-LONG_SEQ   = "A" * 2000   # exceeds ESM2_MAX_LEN (1022); should be truncated silently
+SHORT_SEQ = "MKTAYIAKQRQISFVKSHFSRQLEERLGLIEVQAPILSRVGDGTQDNLSGAEKAVQVKVKALPDAQFEVVHSLAKWKRQTLGQHDFSAGEGLYTHMKALRPDEDRLSPLHSVYVDQWDWERVMGDGERQFSTLKSTVEAIWAGIKATEAAVSEEFGLAPFLPDQIHFVHSQELLSRYPDLDAKGRERAIAKDLGAVFLVGIGGKLSDGHRHDVRAPDYDDWSTPSELGHAGLNGDILVWNPVLEDAFELSSMGIRVDADTLKHQLALTGEDEDTLSLQELIDAYRQQDEPQAQLATQSLGVVNSSIVTYDLSK"  # noqa: E501
+LONG_SEQ = "A" * 2000  # exceeds ESM2_MAX_LEN (1022); should be truncated silently
 
-FAKE_ACC   = "FAKEACC1"
+FAKE_ACC = "FAKEACC1"
 
 
 class TestESM2Constants:
@@ -69,7 +69,7 @@ class TestLoadESM2Singleton:
     def test_second_call_idempotent(self):
         """Second call should not reload (singleton pattern). Must not raise."""
         load_esm2_singleton(verbose=False)
-        load_esm2_singleton(verbose=False)   # must be a no-op, no error
+        load_esm2_singleton(verbose=False)  # must be a no-op, no error
 
 
 class TestBuildSeqFeatureMatrix:
@@ -77,11 +77,14 @@ class TestBuildSeqFeatureMatrix:
         """build_seq_feature_matrix returns (N, 640) even if no embeddings present."""
         accs = ["ACC_A", "ACC_B", "ACC_C"]
         import pandas as pd
+
         # Provide a minimal fake embedding DataFrame so parquet read is skipped
-        fake_df = pd.DataFrame({
-            "accession": ["ACC_A"],
-            "embedding": [np.zeros(ESM2_DIM, dtype=np.float32).tolist()],
-        })
+        fake_df = pd.DataFrame(
+            {
+                "accession": ["ACC_A"],
+                "embedding": [np.zeros(ESM2_DIM, dtype=np.float32).tolist()],
+            }
+        )
         matrix = build_seq_feature_matrix(accs, esm2_df=fake_df, allow_inference=False)
         assert matrix.shape == (3, ESM2_DIM)
         assert matrix.dtype == np.float32
@@ -89,17 +92,21 @@ class TestBuildSeqFeatureMatrix:
     def test_known_accession_is_looked_up(self):
         """Accessions present in the df must fill non-zero rows."""
         import pandas as pd
+
         ref_vec = np.ones(ESM2_DIM, dtype=np.float32) * 3.14
-        fake_df = pd.DataFrame({
-            "accession": ["ACC_X"],
-            "embedding":  [ref_vec.tolist()],
-        })
+        fake_df = pd.DataFrame(
+            {
+                "accession": ["ACC_X"],
+                "embedding": [ref_vec.tolist()],
+            }
+        )
         matrix = build_seq_feature_matrix(["ACC_X"], esm2_df=fake_df)
         assert np.allclose(matrix[0], ref_vec)
 
     def test_missing_accession_gives_zero_row(self):
         """Accessions not in the df must produce zero-filled rows (no error)."""
         import pandas as pd
+
         fake_df = pd.DataFrame({"accession": [], "embedding": []})
         matrix = build_seq_feature_matrix(["MISSING_ACC"], esm2_df=fake_df, allow_inference=False)
         assert np.all(matrix[0] == 0.0)
@@ -111,10 +118,9 @@ class TestBuildSeqFeatureMatrix:
         not be all NaN and the shape must be correct.
         """
         import pandas as pd
+
         fake_df = pd.DataFrame({"accession": [], "embedding": []})
-        seqs    = {"NEW_ACC": SHORT_SEQ}
-        matrix  = build_seq_feature_matrix(
-            ["NEW_ACC"], esm2_df=fake_df, allow_inference=True, sequences=seqs
-        )
+        seqs = {"NEW_ACC": SHORT_SEQ}
+        matrix = build_seq_feature_matrix(["NEW_ACC"], esm2_df=fake_df, allow_inference=True, sequences=seqs)
         assert matrix.shape == (1, ESM2_DIM)
         assert not np.any(np.isnan(matrix))

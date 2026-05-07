@@ -12,9 +12,8 @@ Total: 26 binary features (dom_0..dom_25).
 The PFAM_WHITELIST order is FIXED to match the training feature_matrix.parquet
 columns (dom_0..dom_22).  Do not reorder.
 """
-from __future__ import annotations
 
-from typing import Optional
+from __future__ import annotations
 
 import numpy as np
 import requests
@@ -49,7 +48,7 @@ PFAM_WHITELIST: list[str] = [
 ]
 
 # Key domain constants
-RUVC_DEDD_PF = "PF01548"   # IS110 N-terminal (dom_4)
+RUVC_DEDD_PF = "PF01548"  # IS110 N-terminal (dom_4)
 TNP_SERINE_PF = "PF02371"  # IS110 C-terminal (dom_5)
 
 
@@ -59,9 +58,9 @@ def get_pfam_accessions() -> list[str]:
 
 
 def extract_domain_features(
-    pfam_hits: Optional[list[str]] = None,
+    pfam_hits: list[str] | None = None,
     *,
-    sequence: str = "",   # kept for API compatibility; not used
+    sequence: str = "",  # kept for API compatibility; not used
 ) -> np.ndarray:
     """Build a 26-dim domain feature vector (dom_0..dom_25).
 
@@ -134,7 +133,9 @@ def fetch_pfam_hits_uniprot(
             return pfam
         except Exception:
             if attempt < retries:
-                import time; time.sleep(2)
+                import time
+
+                time.sleep(2)
     return []
 
 
@@ -155,10 +156,11 @@ def build_domain_feature_matrix(
     -------
     np.ndarray, shape (N, 26), dtype float32
     """
-    import duckdb
     from collections import defaultdict
 
-    matrix    = np.zeros((len(accessions), 26), dtype=np.float32)
+    import duckdb
+
+    matrix = np.zeros((len(accessions), 26), dtype=np.float32)
     acc_to_idx = {acc: i for i, acc in enumerate(accessions)}
 
     con = duckdb.connect(duckdb_path, read_only=True)

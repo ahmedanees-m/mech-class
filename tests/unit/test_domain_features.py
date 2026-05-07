@@ -2,10 +2,10 @@
 
 Uses the actual API: extract_domain_features(pfam_hits) returning a 26-dim vector.
 """
+
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from mech_class.features.domain import (
     PFAM_WHITELIST,
@@ -14,9 +14,9 @@ from mech_class.features.domain import (
     extract_domain_features,
 )
 
-RUVC_PF = RUVC_DEDD_PF   # "PF01548" IS110 N-terminal
-SER_PF  = TNP_SERINE_PF  # "PF02371" IS110 C-terminal
-CRISPR_PF = "PF13395"    # dom_0 — HNH endonuclease
+RUVC_PF = RUVC_DEDD_PF  # "PF01548" IS110 N-terminal
+SER_PF = TNP_SERINE_PF  # "PF02371" IS110 C-terminal
+CRISPR_PF = "PF13395"  # dom_0 — HNH endonuclease
 
 
 class TestExtractDomainFeatures:
@@ -46,25 +46,23 @@ class TestExtractDomainFeatures:
 
     def test_unknown_domain_ignored(self):
         """Unknown Pfam accession must not raise and must leave the vector unchanged."""
-        vec_known  = extract_domain_features([RUVC_PF])
-        vec_extra  = extract_domain_features([RUVC_PF, "PF99999_FAKE"])
-        assert np.array_equal(vec_known, vec_extra), (
-            "Unknown Pfam should be silently ignored — vector must not change"
-        )
+        vec_known = extract_domain_features([RUVC_PF])
+        vec_extra = extract_domain_features([RUVC_PF, "PF99999_FAKE"])
+        assert np.array_equal(vec_known, vec_extra), "Unknown Pfam should be silently ignored — vector must not change"
 
     # ── IS110 composite flag (dom_23) ──────────────────────────────────────
 
     def test_is110_composite_requires_both_domains(self):
         """dom_23 = 1.0 only when both PF01548 AND PF02371 are present."""
-        assert extract_domain_features([RUVC_PF])[23]        == 0.0, "Only RUVC_PF → not composite"
-        assert extract_domain_features([SER_PF])[23]         == 0.0, "Only SER_PF  → not composite"
-        assert extract_domain_features([])[23]               == 0.0, "Empty       → not composite"
+        assert extract_domain_features([RUVC_PF])[23] == 0.0, "Only RUVC_PF → not composite"
+        assert extract_domain_features([SER_PF])[23] == 0.0, "Only SER_PF  → not composite"
+        assert extract_domain_features([])[23] == 0.0, "Empty       → not composite"
         assert extract_domain_features([RUVC_PF, SER_PF])[23] == 1.0, "Both        → composite"
 
     def test_is110_composite_differs_from_single(self):
         """The IS110 composite vector must differ from the single-domain vector."""
         vec_both = extract_domain_features([RUVC_PF, SER_PF])
-        vec_one  = extract_domain_features([RUVC_PF])
+        vec_one = extract_domain_features([RUVC_PF])
         assert not np.array_equal(vec_both, vec_one)
 
     # ── Single-domain flag (dom_25) ────────────────────────────────────────
@@ -106,33 +104,38 @@ class TestExtractDomainFeatures:
     def test_tn5_probe_domain_vector(self):
         """Tn5 (PF01609 = dom_8): single domain → dom_25 = 1.0."""
         vec = extract_domain_features(["PF01609"])
-        assert vec[8]  == 1.0, "PF01609 → dom_8 should be 1.0"
+        assert vec[8] == 1.0, "PF01609 → dom_8 should be 1.0"
         assert vec[25] == 1.0, "Single whitelist hit → dom_25 should be 1.0"
 
 
 # ── get_pfam_accessions ───────────────────────────────────────────────────────
 
+
 class TestGetPfamAccessions:
     def test_returns_list_of_23(self):
         from mech_class.features.domain import get_pfam_accessions
+
         pf = get_pfam_accessions()
         assert len(pf) == 23
 
     def test_returns_copy_not_singleton(self):
         """Mutating the returned list must not corrupt the module constant."""
         from mech_class.features.domain import get_pfam_accessions
+
         pf1 = get_pfam_accessions()
         pf2 = get_pfam_accessions()
-        pf1.clear()   # mutate the copy
+        pf1.clear()  # mutate the copy
         assert len(pf2) == 23, "get_pfam_accessions() should return an independent copy"
 
 
 # ── fetch_pfam_hits_uniprot (error fallback only) ─────────────────────────────
 
+
 class TestFetchPfamHitsUniprot:
     def test_invalid_accession_returns_empty_list(self):
         """Invalid accession → 404/error → empty list (no exception raised)."""
         from mech_class.features.domain import fetch_pfam_hits_uniprot
+
         result = fetch_pfam_hits_uniprot("INVALID_ACCESSION_XYZ_99999", timeout=5, retries=0)
         assert isinstance(result, list)
         assert result == []
@@ -140,5 +143,6 @@ class TestFetchPfamHitsUniprot:
     def test_returns_list_type_always(self):
         """Function must always return a list, never raise."""
         from mech_class.features.domain import fetch_pfam_hits_uniprot
+
         result = fetch_pfam_hits_uniprot("UNREACHABLE_9999", timeout=1, retries=0)
         assert isinstance(result, list)

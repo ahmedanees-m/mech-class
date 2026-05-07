@@ -3,38 +3,62 @@
 These tests use synthetic in-memory data to verify the end-to-end aggregation
 pipeline without requiring live API calls or the Docker environment.
 """
+
 from __future__ import annotations
-import tempfile
-from pathlib import Path
 
 import pandas as pd
 import pytest
 
 from mech_class.evidence.aggregator import main as aggregate_main
 
-
 # Column names MUST match aggregator.load_all_evidence expectations:
 #   uniprot_acc, inferred_tier_a, evidence_weight, source,
 #   inferred_tier_b (optional), composite_architecture (optional)
 SYNTHETIC_EVIDENCE = [
     # M-CSA (weight 1.0) — confident DSB_NUCLEASE
-    {"uniprot_acc": "P001", "inferred_tier_a": "DSB_NUCLEASE", "evidence_weight": 1.0,
-     "source": "M-CSA", "inferred_tier_b": "N1_CRISPR_Cas", "composite_architecture": False},
+    {
+        "uniprot_acc": "P001",
+        "inferred_tier_a": "DSB_NUCLEASE",
+        "evidence_weight": 1.0,
+        "source": "M-CSA",
+        "inferred_tier_b": "N1_CRISPR_Cas",
+        "composite_architecture": False,
+    },
     # Rhea corroboration
-    {"uniprot_acc": "P001", "inferred_tier_a": "DSB_NUCLEASE", "evidence_weight": 0.8,
-     "source": "Rhea", "inferred_tier_b": "N1_CRISPR_Cas", "composite_architecture": False},
-
+    {
+        "uniprot_acc": "P001",
+        "inferred_tier_a": "DSB_NUCLEASE",
+        "evidence_weight": 0.8,
+        "source": "Rhea",
+        "inferred_tier_b": "N1_CRISPR_Cas",
+        "composite_architecture": False,
+    },
     # IS110 composite — InterPro says DSB_NUCLEASE (CL0219 clan), but TnPedia overrides
-    {"uniprot_acc": "P002", "inferred_tier_a": "DSB_NUCLEASE", "evidence_weight": 0.5,
-     "source": "InterPro", "inferred_tier_b": None, "composite_architecture": True},
-    {"uniprot_acc": "P002", "inferred_tier_a": "DSB_FREE_TRANSEST_RECOMBINASE",
-     "evidence_weight": 0.7, "source": "TnPedia_ISfinder",
-     "inferred_tier_b": "B3_Programmable_Recombinase", "composite_architecture": True},
-
+    {
+        "uniprot_acc": "P002",
+        "inferred_tier_a": "DSB_NUCLEASE",
+        "evidence_weight": 0.5,
+        "source": "InterPro",
+        "inferred_tier_b": None,
+        "composite_architecture": True,
+    },
+    {
+        "uniprot_acc": "P002",
+        "inferred_tier_a": "DSB_FREE_TRANSEST_RECOMBINASE",
+        "evidence_weight": 0.7,
+        "source": "TnPedia_ISfinder",
+        "inferred_tier_b": "B3_Programmable_Recombinase",
+        "composite_architecture": True,
+    },
     # Low confidence — single weak source → manual review or discard
-    {"uniprot_acc": "P003", "inferred_tier_a": "TRANSPOSASE", "evidence_weight": 0.5,
-     "source": "InterPro", "inferred_tier_b": "T1_DDE_Transposase",
-     "composite_architecture": False},
+    {
+        "uniprot_acc": "P003",
+        "inferred_tier_a": "TRANSPOSASE",
+        "evidence_weight": 0.5,
+        "source": "InterPro",
+        "inferred_tier_b": "T1_DDE_Transposase",
+        "composite_architecture": False,
+    },
 ]
 
 
