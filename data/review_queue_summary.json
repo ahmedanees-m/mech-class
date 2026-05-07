@@ -1,0 +1,10 @@
+{
+  "total_for_review": 8936,
+  "by_inferred_tier_a": {
+    "TRANSPOSASE": 8924,
+    "DSB_FREE_TRANSEST_RECOMBINASE": 12
+  },
+  "composite_flagged": 2,
+  "contradictions": 8936,
+  "output_tsv": "/data/labels/review_queue/review_queue_annotated.tsv"
+}

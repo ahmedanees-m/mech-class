@@ -1,0 +1,84 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.whl
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+coverage.xml
+.mypy_cache/
+htmlcov/
+
+# Large data files (stored on VM at /data/; not tracked in repo)
+# Parquets, HDF5, large TSV/FASTA
+*.parquet
+*.h5
+*.hdf5
+*.fasta
+*.fa
+*.fastq
+*.gz
+*.bz2
+*.tar
+*.zip
+*.7z
+
+# Exceptions: small curated files that SHOULD be tracked
+!data/review_queue_annotated.tsv
+!data/review_queue_annotated_final.tsv
+!data/review_queue_summary.json
+
+# Model checkpoints (distributed via Zenodo, not GitHub)
+*.pkl
+*.pt
+*.bin
+*.safetensors
+models/
+/data/models/
+/data/embeddings/
+/data/graphs/
+
+# Notebooks / Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# IDE / OS
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+Thumbs.db
+desktop.ini
+*~
+
+# Sphinx docs build
+docs/_build/
+docs/api/_autosummary/
+
+# Temporary / scratch scripts
+scripts/_tmp_*.py
+
+# Rclone
+rclone.conf
+
+# Secrets
+.env.local
+*.pem
+*.key
+secrets/

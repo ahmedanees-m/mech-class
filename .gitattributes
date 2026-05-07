@@ -1,0 +1,26 @@
+# Normalize line endings
+* text=auto eol=lf
+
+# Force LF for Python and YAML
+*.py  text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+*.md  text eol=lf
+*.rst text eol=lf
+*.sh  text eol=lf
+*.txt text eol=lf
+*.json text eol=lf
+*.tsv text eol=lf
+*.cff text eol=lf
+*.in  text eol=lf
+
+# Binary files — do not mangle
+*.pkl binary
+*.parquet binary
+*.h5  binary
+*.hdf5 binary
+*.png binary
+*.pdf binary
+*.gif binary
+*.ico binary

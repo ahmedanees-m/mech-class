@@ -1,0 +1,80 @@
+name: Docker
+
+on:
+  push:
+    tags:
+      - "v*.*.*"          # trigger on version tags, e.g. v0.5.0
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag (default: git tag or 'dev')"
+        required: false
+        default: "dev"
+
+env:
+  REGISTRY:   ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/pen-stack/structure
+
+jobs:
+  build:
+    name: Build pen-stack/structure Docker image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: meta
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/v}"
+          else
+            TAG="${{ github.event.inputs.tag || 'dev' }}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Image tag: ${TAG}"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.structure
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to:   type=gha,mode=max
+          build-args: |
+            MECH_CLASS_VERSION=${{ steps.meta.outputs.tag }}
+
+  smoke-test:
+    name: Docker smoke test
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pull image and run import smoke test
+        run: |
+          TAG="${{ needs.build.outputs.tag || 'latest' }}"
+          docker run --rm \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+            python -c "
+          from mech_class.api import Predictor
+          from mech_class.features.domain import extract_domain_features
+          vec = extract_domain_features(['PF01548', 'PF02371'])
+          assert vec[23] == 1.0
+          print('[OK] Docker smoke test passed')
+          "

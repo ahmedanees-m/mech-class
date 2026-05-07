@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - name: Install dev dependencies
+        run: pip install ruff mypy types-PyYAML types-requests
+      - name: Ruff lint
+        run: ruff check mech_class/ tests/
+      - name: Ruff format check
+        run: ruff format --check mech_class/ tests/
+      - name: Mypy type check
+        run: mypy mech_class/ --ignore-missing-imports --no-strict-optional
+
+  test:
+    name: Unit + Integration Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+      - name: Install package + test deps (no ESM-2/GPU)
+        run: pip install -e ".[dev]"
+      - name: Run unit + integration tests with coverage
+        run: |
+          pytest tests/unit/ tests/integration/ -v --tb=short \
+            --cov=mech_class --cov-report=xml --cov-report=term-missing \
+            --cov-fail-under=60
+      - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.11'
+        uses: codecov/codecov-action@v4
+        with:
+          file: coverage.xml
+          fail_ci_if_error: false
+
+  smoke-import:
+    name: Smoke Import Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - name: Install package (no optional extras)
+        run: pip install -e .
+      - name: Import smoke test
+        run: |
+          python -c "
+          import mech_class
+          from mech_class.api import Predictor, Prediction, _fetch_pfam_hits, _build_feature_row
+          from mech_class.features.domain import (
+              PFAM_WHITELIST, extract_domain_features,
+              RUVC_DEDD_PF, TNP_SERINE_PF,
+          )
+          from mech_class.features.seq import (
+              ESM2_DIM, embed_sequence, load_esm2_singleton,
+          )
+          from mech_class.models.lightgbm_clf import LightGBMClassifier
+          from mech_class.models.composite_head import CompositeHead
+          from mech_class.evidence.aggregator import (
+              aggregate_protein, IS110_COMPOSITE_SOURCES,
+          )
+
+          # domain sanity
+          assert len(PFAM_WHITELIST) == 23, f'Expected 23 Pfam families, got {len(PFAM_WHITELIST)}'
+          vec = extract_domain_features(['PF01548', 'PF02371'])
+          assert vec[23] == 1.0, 'IS110 composite flag (dom_23) should be 1.0'
+          assert vec[25] == 0.0, 'Single-domain flag (dom_25) should be 0.0 for 2-domain set'
+
+          # seq sanity (ESM-2 not installed; returns zeros gracefully)
+          import numpy as np
+          v = embed_sequence('MKTAYIAKQRQISFVK')
+          assert v.shape == (ESM2_DIM,), f'Expected (640,), got {v.shape}'
+          assert v.dtype == np.float32
+
+          # aggregator sanity
+          assert 'TnPedia_ISfinder' in IS110_COMPOSITE_SOURCES
+
+          print('[OK] All imports and sanity checks passed')
+          "

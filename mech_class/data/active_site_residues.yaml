@@ -1,0 +1,162 @@
+# active_site_residues.yaml — Pfam-family to catalytic residue type mapping
+# Used by scripts/12_compute_active_site_features.py to identify putative
+# catalytic residues in AlphaFold structures without requiring per-protein
+# residue annotations (M-CSA or UniProt active-site records).
+#
+# Algorithm: for each protein, the highest-priority matching Pfam family is
+# used. All CA atoms of the listed amino acid types are extracted from the AF
+# structure, then the tightest spatial cluster of n_select residues is chosen
+# as the putative active site.
+#
+# catalytic_types : 1-letter AA codes to search for
+# n_select        : target cluster size (max residues to select)
+# cluster         : true = spatial tightest-cluster; false = N-terminal bias
+# min_count       : minimum number of candidates required (else zero-fill)
+#
+# Priority order (index 0 = highest) determines which entry wins when a protein
+# has multiple matching Pfam families.
+
+entries:
+
+  # ── IS110 / Bridge Recombinase (DEDD N-terminal domain) ──────────────────
+  - pfam: PF01548
+    name: DEDD_Tnp_IS110
+    catalytic_types: [D, E]   # RuvC-fold DEDD metal-chelate: 2 Asp + 1 Glu
+    n_select: 3
+    min_count: 3
+    cluster: true
+    notes: >
+      IS110 N-terminal RuvC-fold catalytic domain. DDE metal-binding motif:
+      D97, D143, E239 (canonical positions). Paired with PF02371 CTD in
+      IS110 composites. Durrant 2024 Nature; Hiraizumi 2024 Nature.
+
+  - pfam: PF02371
+    name: Transposase_20
+    catalytic_types: [H]      # HHH motif in IS110 CTD
+    n_select: 3
+    min_count: 2
+    cluster: true
+    notes: >
+      IS110 C-terminal domain. Contains a buried HHH motif involved in DNA
+      binding and strand transfer. Not the serine catalytic site.
+
+  # ── Cas9 (DSB_NUCLEASE) ──────────────────────────────────────────────────
+  - pfam: PF13395
+    name: HNH_4
+    catalytic_types: [H, N, D]  # HNH nuclease triad
+    n_select: 3
+    min_count: 2
+    cluster: true
+    notes: >
+      Cas9 HNH domain. Catalytic His (nucleophile), stabilising His, and
+      Asp/Asn. Position 840 in SpCas9. Cleaves target strand.
+
+  - pfam: PF18541
+    name: RuvC_III
+    catalytic_types: [D, E]
+    n_select: 3
+    min_count: 3
+    cluster: true
+    notes: Cas9 RuvC subdomain 3. Part of the split RuvC DDE motif.
+
+  # ── Cas12a (DSB_NUCLEASE) ────────────────────────────────────────────────
+  - pfam: PF18516
+    name: RuvC_1
+    catalytic_types: [D, E]
+    n_select: 3
+    min_count: 3
+    cluster: true
+    notes: Cas12a single RuvC domain. DDE motif for both target and non-target strands.
+
+  # ── TnpB / IscB / Fanzor ────────────────────────────────────────────────
+  - pfam: PF07282
+    name: Cas12f1-like_TNB
+    catalytic_types: [D, E]
+    n_select: 3
+    min_count: 3
+    cluster: true
+    notes: TnpB/Fanzor ancestral RuvC-like DDE motif.
+
+  # ── Standalone HNH endonuclease ──────────────────────────────────────────
+  - pfam: PF01844
+    name: HNH
+    catalytic_types: [H, H, N]
+    n_select: 3
+    min_count: 2
+    cluster: true
+    notes: Standalone HNH. Catalytic His + stabilising His + Asn/Asp.
+
+  # ── Tyrosine recombinase (Cre, Flp, Lambda-Int, XerC/D) ─────────────────
+  - pfam: PF00589
+    name: Phage_integrase
+    catalytic_types: [Y, R]   # Tyr nucleophile + 2 Arg clamp residues
+    n_select: 3
+    min_count: 2
+    cluster: true
+    notes: >
+      Tyrosine recombinase active site hexad (R-H-R-H-W-Y in Cre).
+      Focus on Tyr (nucleophile) + flanking Arg residues.
+
+  # ── Small serine recombinase (resolvase family) ──────────────────────────
+  - pfam: PF00239
+    name: Resolvase
+    catalytic_types: [S, R]   # Ser nucleophile + Arg
+    n_select: 2
+    min_count: 1
+    cluster: false            # N-terminal Ser is the active site
+    notes: >
+      Small serine recombinase. Active-site Ser is among the first ~12
+      residues of the catalytic domain (N-terminal). Paired with an Arg
+      partner ~4-5 residues upstream in space.
+
+  # ── Large serine integrase (phiC31, Bxb1, TP901-1) ──────────────────────
+  - pfam: PF07508
+    name: Recombinase
+    catalytic_types: [S, R]
+    n_select: 3
+    min_count: 2
+    cluster: true
+    notes: Large serine integrase. Ser nucleophile + active-site Arg pair.
+
+  # ── DDE transposases ─────────────────────────────────────────────────────
+  - pfam: PF00665
+    name: rve
+    catalytic_types: [D, E]
+    n_select: 3
+    min_count: 3
+    cluster: true
+    notes: RNase H / integrase core DDE motif (Tn5, HIV integrase, TnsB).
+
+  - pfam: PF01609
+    name: DDE_Tnp_1
+    catalytic_types: [D, E]
+    n_select: 3
+    min_count: 3
+    cluster: true
+    notes: Canonical DDE transposase catalytic domain (Tn5, IS3/IS4 family).
+
+  - pfam: PF13586
+    name: DDE_Tnp
+    catalytic_types: [D, E]
+    n_select: 3
+    min_count: 3
+    cluster: true
+    notes: Diverse DDE transposase variant.
+
+  # ── TnsA endonuclease (Tn7 / CAST) ──────────────────────────────────────
+  - pfam: PF08721
+    name: Tn7_Tnp_TnsA_C
+    catalytic_types: [D, E, K]  # Metal-dependent nuclease
+    n_select: 3
+    min_count: 2
+    cluster: true
+    notes: TnsA C-terminal nuclease. Metal-coordination Asp + Glu + catalytic Lys.
+
+  # ── HUH rolling-circle initiator ─────────────────────────────────────────
+  - pfam: PF02486
+    name: Rep_3
+    catalytic_types: [H, Y]   # HUH chelate (2 His) + Tyr transesterase
+    n_select: 3
+    min_count: 2
+    cluster: true
+    notes: Rolling-circle HUH domain (IS91, ISCR, helitron initiators).

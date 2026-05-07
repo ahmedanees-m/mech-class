@@ -1,0 +1,146 @@
+# Mechanism class taxonomy v1.0.0 — referenced by all training scripts
+# Curator: Anees Ahmed (ahmedaneesm@gmail.com), VIT Vellore
+# Created: 2026-04-30
+
+tier_a:
+  - id: DSB_NUCLEASE
+    name: DSB Nuclease
+    chemistry: hydrolysis
+    description: |
+      Phosphodiester bond hydrolysis producing a double-strand break (or single-strand
+      nick). Two-metal-ion catalysis (Mg2+ or Mn2+) is canonical. Repair is host-mediated
+      (NHEJ or HDR).
+    examples: [SpCas9, AsCas12a, Cas12f, SpuFz1, IS200_TnpB]
+    pfam_examples: [PF18541, PF16592, PF14239, PF18297, PF13976]
+    ec_root: '3.1.-.-'
+
+  - id: DSB_FREE_TRANSEST_RECOMBINASE
+    name: DSB-Free Transesterification Recombinase
+    chemistry: transesterification
+    description: |
+      Covalent serine- or tyrosine-mediated transesterification with a phosphoester
+      intermediate. No DSB; no host repair required. Mechanistically distinct from
+      hydrolytic nucleases despite occasional shared folds (e.g., IS110 RuvC-fold +
+      serine domain composite — the KEY composite case).
+    examples: [Cre, Bxb1, lambda_Int, IS621_recombinase, evoCAST_TnsB]
+    pfam_examples: [PF00589, PF07508, PF00239, PF02371, PF01548, PF13701]
+    ec_root: '2.7.7.-'
+
+  - id: TRANSPOSASE
+    name: DDE Transposase
+    chemistry: hydrolysis
+    description: |
+      DDE-family cut-and-paste transposition. Two metal ions, hydrolytic strand cleavage,
+      strand transfer to target site. Distinct from IS110/DEDD transesterase chemistry.
+    examples: [Tn5, Sleeping_Beauty, IS3]
+    pfam_examples: [PF13976, PF00665, PF01610]
+    ec_root: '2.7.7.-'
+
+tier_b:
+  # Within DSB_NUCLEASE
+  - id: N1_CRISPR_Cas
+    parent_tier_a: DSB_NUCLEASE
+    name: CRISPR-Cas nuclease
+    examples: [SpCas9, AsCas12a, Cas12f]
+    rna_guided: true
+    composite_architecture: false
+
+  - id: N2_Fanzor_OMEGA
+    parent_tier_a: DSB_NUCLEASE
+    name: Fanzor / OMEGA nuclease
+    examples: [SpuFz1, MmeFz2, IS200_TnpB]
+    rna_guided: true
+    composite_architecture: false
+
+  - id: N3_Generic_Nuclease
+    parent_tier_a: DSB_NUCLEASE
+    name: Restriction / HNH / generic nuclease
+    examples: []
+    rna_guided: false
+    composite_architecture: false
+
+  - id: N4_Editor_Fusion
+    parent_tier_a: DSB_NUCLEASE
+    name: Cas9-nickase fusion (prime / base editor)
+    examples: [PE2, ABE7.10, BE3]
+    rna_guided: true
+    composite_architecture: true
+
+  # Within DSB_FREE_TRANSEST_RECOMBINASE
+  - id: B1_Site_Specific_Recombinase
+    parent_tier_a: DSB_FREE_TRANSEST_RECOMBINASE
+    name: Site-Specific Recombinase
+    examples: [Cre, Bxb1, lambda_Int, eePASSIGE]
+    rna_guided: false
+    composite_architecture: false
+
+  - id: B2_CAST_Integrase
+    parent_tier_a: DSB_FREE_TRANSEST_RECOMBINASE
+    name: CRISPR-Associated Transposase integrase
+    examples: [evoCAST, CAST_VK, CAST_IF]
+    rna_guided: true
+    composite_architecture: true
+
+  - id: B3_Programmable_Recombinase
+    parent_tier_a: DSB_FREE_TRANSEST_RECOMBINASE
+    name: Programmable Recombinase (IS110 / bridge RNA)
+    examples: [IS621, IS110, IS1111]
+    rna_guided: true
+    composite_architecture: true
+    composite_note: >
+      THE canonical composite case: RuvC-fold N-terminal DEDD domain (PF01548) +
+      serine Tnp C-terminal domain (PF02371). DEDD fold coordinates Mg2+ for
+      transesterification transition state (not hydrolysis). Must predict
+      DSB_FREE_TRANSEST_RECOMBINASE (not DSB_NUCLEASE) despite RuvC fold.
+
+  - id: B4_Tyrosine_Recombinase
+    parent_tier_a: DSB_FREE_TRANSEST_RECOMBINASE
+    name: Tyrosine recombinase (general)
+    examples: [lambda_Int, XerC, XerD]
+    rna_guided: false
+    composite_architecture: false
+
+  - id: B5_Serine_Recombinase
+    parent_tier_a: DSB_FREE_TRANSEST_RECOMBINASE
+    name: Serine recombinase (general)
+    examples: [PhiC31, TG1, Tp901]
+    rna_guided: false
+    composite_architecture: false
+
+  # Within TRANSPOSASE
+  - id: T1_DDE_Transposase
+    parent_tier_a: TRANSPOSASE
+    name: DDE-family transposase
+    examples: [Tn5, IS3, IS10, Sleeping_Beauty]
+    rna_guided: false
+    composite_architecture: false
+
+composite_definition: |
+  A protein is "composite" when its architecture combines two or more catalytic or
+  binding modules of distinct evolutionary origin, with both modules functionally
+  required for the protein's primary activity. Canonical example: IS110 family
+  (RuvC-fold N-terminal DEDD domain + Tnp/serine C-terminal domain). Editor fusions
+  (PE2, BE3) are also composite (Cas9-nickase + reverse transcriptase or deaminase)
+  but flagged separately as N4_Editor_Fusion since composition is engineered.
+
+# Pre-registered success criteria — locked 2026-04-30, before training begins
+success_criteria:
+  tier_a_macro_f1_min: 0.80
+  tier_a_macro_f1_ci_lower_min: 0.70
+  bootstrap_n: 1000
+  bootstrap_seed: 42
+  is110_hold_out_pdb: "8U0D"
+  is110_hold_out_uniprot: "Q8X7L4"
+  is110_tier_a_target: DSB_FREE_TRANSEST_RECOMBINASE
+  is110_tier_a_confidence_min: 0.60
+  is110_composite_flag_required: true
+  fanzor_hold_out_pdb: "8R6H"
+  fanzor_hold_out_uniprot: "A0A809QSX5"
+  fanzor_tier_a_target: DSB_NUCLEASE
+  fanzor_tier_a_confidence_min: 0.70
+  composite_fp_rate_max: 0.10
+  composite_fp_systems: [SpCas9, Bxb1, Cre, Tn5]
+
+version: 1.0.0
+created: '2026-04-30'
+curator: 'Anees Ahmed'

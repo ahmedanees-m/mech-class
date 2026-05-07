@@ -1,0 +1,129 @@
+{
+  "n_pass": 5,
+  "n_ood": 5,
+  "n_total": 6,
+  "all_pass": true,
+  "probes": [
+    {
+      "name": "IS110_representative",
+      "accession": "A0A7C9VKZ0",
+      "predicted_tier_a": "DSB_FREE_TRANSEST_RECOMBINASE",
+      "tier_a_confidence": 0.9968538449084686,
+      "composite": true,
+      "composite_prob": 0.9990736137308178,
+      "expected_tier_a": "DSB_FREE_TRANSEST_RECOMBINASE",
+      "min_confidence": 0.6,
+      "checks": {
+        "tier_a_correct": true,
+        "confidence_met": true,
+        "composite_flag": true
+      },
+      "all_pass": true,
+      "in_distribution": false,
+      "note": ""
+    },
+    {
+      "name": "Fanzor_SpFanzor1",
+      "accession": "Q8I6T1",
+      "predicted_tier_a": "DSB_NUCLEASE",
+      "tier_a_confidence": 0.9766619873252174,
+      "composite": false,
+      "composite_prob": 0.06267340166529377,
+      "expected_tier_a": "DSB_NUCLEASE",
+      "min_confidence": 0.7,
+      "checks": {
+        "tier_a_correct": true,
+        "confidence_met": true
+      },
+      "all_pass": true,
+      "in_distribution": false,
+      "note": ""
+    },
+    {
+      "name": "Cas9_SpCas9",
+      "accession": "Q99ZW2",
+      "predicted_tier_a": "DSB_NUCLEASE",
+      "tier_a_confidence": 0.9995952606940577,
+      "composite": true,
+      "composite_prob": 0.7532599472301666,
+      "expected_tier_a": "DSB_NUCLEASE",
+      "min_confidence": 0.6,
+      "checks": {
+        "tier_a_correct": true,
+        "confidence_met": true
+      },
+      "all_pass": true,
+      "in_distribution": false,
+      "note": "Composite FP (P=0.753) -- see MODEL_CARD.md"
+    },
+    {
+      "name": "Bxb1_integrase",
+      "accession": "Q9B086",
+      "predicted_tier_a": "DSB_FREE_TRANSEST_RECOMBINASE",
+      "tier_a_confidence": 0.965772509830423,
+      "composite": false,
+      "composite_prob": 0.11803280911288924,
+      "expected_tier_a": "DSB_FREE_TRANSEST_RECOMBINASE",
+      "min_confidence": 0.6,
+      "checks": {
+        "tier_a_correct": true,
+        "confidence_met": true
+      },
+      "all_pass": true,
+      "in_distribution": false,
+      "note": "Corrected from Q8VVR2 (S. aureus GajA nuclease, wrong). Q9B086 not in atlas -- fetched from UniProt."
+    },
+    {
+      "name": "Tn5_transposase",
+      "accession": "Q46731",
+      "predicted_tier_a": "TRANSPOSASE",
+      "tier_a_confidence": 0.8692724777572441,
+      "composite": false,
+      "composite_prob": 0.3786747752024964,
+      "expected_tier_a": "TRANSPOSASE",
+      "min_confidence": 0.6,
+      "checks": {
+        "tier_a_correct": true,
+        "confidence_met": true
+      },
+      "all_pass": true,
+      "in_distribution": false,
+      "note": "Corrected from P00509 (wrong placeholder)"
+    },
+    {
+      "name": "Cre_recombinase",
+      "accession": "P06956",
+      "predicted_tier_a": "DSB_FREE_TRANSEST_RECOMBINASE",
+      "tier_a_confidence": 0.999926149702324,
+      "composite": false,
+      "composite_prob": 0.005118399407678514,
+      "expected_tier_a": "DSB_FREE_TRANSEST_RECOMBINASE",
+      "min_confidence": 0.6,
+      "checks": {
+        "tier_a_correct": true,
+        "confidence_met": true
+      },
+      "all_pass": true,
+      "in_distribution": true,
+      "note": "IN TRAINING (row 8658, PF00589). Not OOD -- included for composite FP table (\u00a70.5 pre-registration). Composite P=0.005 -> TN."
+    }
+  ],
+  "cre_note": "P06956 (Cre recombinase) is IN TRAINING (row 8658, DSB_FREE / B1_Site_Specific_Recombinase, 424 PF00589 proteins in training). Cannot serve as OOD holdout. Included in composite FP table as in-distribution probe per \u00a70.5 pre-registration requirement. ACTUAL: tier_a=DSB_FREE conf=0.9999, composite=False (P=0.005) -> TN (in-distribution). Composite FP rate (4 probes incl. Cre): 1/4 = 25%. See LABEL_PROVENANCE.md.",
+  "composite_fp_rate": {
+    "numerator": 1,
+    "denominator": 4,
+    "rate": 0.25,
+    "threshold": 0.1,
+    "pass": false,
+    "probes": [
+      "Cas9_SpCas9",
+      "Bxb1_integrase",
+      "Tn5_transposase",
+      "Cre_recombinase"
+    ]
+  },
+  "accession_corrections": {
+    "Bxb1": "Q8VVR2 -> Q9B086 (Mycobacteriophage Bxb1 integrase)",
+    "Tn5": "P00509 -> Q46731 (E.coli Tn5 transposase)"
+  }
+}
