@@ -89,15 +89,15 @@ testpaths = ["tests"]
 source = ["mech_class"]
 omit = [
     # evidence scrapers — network I/O, not unit-testable without mocks
-    "mech_class/evidence/scrapers/mcsa.py",
-    "mech_class/evidence/scrapers/rhea.py",
-    "mech_class/evidence/scrapers/interpro.py",
-    "mech_class/evidence/scrapers/tnpedia.py",
-    "mech_class/evidence/scrapers/crisprcasdb.py",
-    "mech_class/evidence/scrapers/uniprot_features.py",
-    "mech_class/evidence/scrapers/pfam_whitelist.py",
-    "mech_class/evidence/scrapers/atlas_domain.py",
-    "mech_class/evidence/scrapers/foundational.py",
+    "mech_class/evidence/mcsa.py",
+    "mech_class/evidence/rhea.py",
+    "mech_class/evidence/interpro.py",
+    "mech_class/evidence/tnpedia.py",
+    "mech_class/evidence/crisprcasdb.py",
+    "mech_class/evidence/uniprot_features.py",
+    "mech_class/evidence/pfam_whitelist.py",
+    "mech_class/evidence/atlas_domain.py",
+    "mech_class/evidence/foundational.py",
     # CLI entry point
     "mech_class/cli.py",
     # data loader (thin wrapper)
@@ -108,7 +108,7 @@ omit = [
     # MLP baseline — excluded from main paper
     "mech_class/models/mlp_clf.py",
     # pLDDT helper
-    "mech_class/features/plddt.py",
+    "mech_class/utils/plddt.py",
 ]
 
 [tool.coverage.report]
