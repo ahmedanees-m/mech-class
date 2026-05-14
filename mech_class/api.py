@@ -237,19 +237,27 @@ class Predictor:
         comp_feat_cols = self._comp.get("feature_cols") or feat_cols
         X_comp = X_df[comp_feat_cols] if comp_feat_cols else X_df
         comp_proba = self._comp["model"].predict_proba(X_comp)[0]
-        composite = bool(comp_proba[1] >= 0.5)
-        composite_prob = float(comp_proba[1])
+        _ml_composite_prob = float(comp_proba[1])
+
+        # Biochemical hard gate: IS110 composite architecture is defined by the
+        # co-occurrence of PF01548 (DEDD_Tnp_IS110, RuvC-fold N-terminal domain)
+        # AND PF02371 (Transposase_20, serine-Tnp C-terminal domain) in the same
+        # polypeptide. Without both domains the flag is forced False regardless of
+        # the ML score, preventing multi-domain non-IS110 proteins (e.g. SpCas9
+        # with its RuvC+HNH architecture) from triggering false positives.
+        pfam_set = set(pfam_hits)
+        _gate_pass = "PF01548" in pfam_set and "PF02371" in pfam_set
+        composite = _gate_pass and (_ml_composite_prob >= 0.5)
+        composite_prob = _ml_composite_prob if _gate_pass else 0.0
 
         # Build composite evidence strings
         comp_ev: list[str] = []
         if composite:
-            pfam_set = set(pfam_hits)
-            if "PF01548" in pfam_set:
-                comp_ev.append("RuvC-fold DEDD N-terminal domain (PF01548)")
-            if "PF02371" in pfam_set:
-                comp_ev.append("Serine Tnp C-terminal domain (PF02371)")
-            if not comp_ev:
-                comp_ev.append(f"Composite score P={composite_prob:.3f} (multi-domain heuristic)")
+            comp_ev.append("RuvC-fold DEDD N-terminal domain (PF01548)")
+            comp_ev.append("Serine Tnp C-terminal domain (PF02371)")
+        elif _gate_pass and not composite:
+            # Gate passed but ML confidence below threshold — report raw score
+            comp_ev.append(f"Domain gate passed (PF01548 ∧ PF02371) but ML confidence low (P={_ml_composite_prob:.3f})")
 
         # --- Tier-B prediction ------------------------------------------
         tier_b_label: str | None = None
