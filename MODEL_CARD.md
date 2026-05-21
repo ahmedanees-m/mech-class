@@ -30,7 +30,7 @@ decision-making without independent experimental validation.
 | Tier-B classifiers | Separate LightGBM per Tier-A class |
 | Composite head | Biochemical gate (PF01548 ∧ PF02371) + binary LightGBM confidence |
 | Feature channels | F_seq (640d), F_struct (1280d), F_domain (26d), F_active_site (7d) |
-| F_seq source | ESM-2 150M mean-pool (from GENOME-ATLAS v0.6.0) |
+| F_seq source | ESM-2 150M mean-pool (from GENOME-ATLAS v0.6.0, pinned; see pyproject.toml) |
 | F_struct source | SaProt 650M mean-pool (AlphaFold structure + Foldseek SA-tokens) |
 | pLDDT gate | F_struct and F_active_site zero-filled when mean active-site pLDDT < 70 |
 
