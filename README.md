@@ -29,13 +29,13 @@ The key novel contribution is explicit handling of composite catalytic architect
 | `DSB_FREE_TRANSEST_RECOMBINASE` | Transesterification, no DSB | IS110, CAST, Cre, Bxb1, Lambda Int |
 | `TRANSPOSASE` | DDE-family cut-and-paste transposition | Tn5, IS10, Mos1 |
 
-**Performance (v1.0, 572-protein gold set):**
+**Performance (v0.5.2, 572-protein gold set):**
 
 | Metric | Value | 95% Bootstrap CI |
 |---|---|---|
-| Tier-A macro-F1 | 0.9862 | [0.971, 0.997] |
-| Composite head FP rate | 4.2% | — |
-| IS110 holdout confidence | 0.994 | — |
+| Tier-A macro-F1 | 0.9862 | [0.953, 1.000] |
+| Composite head FP rate | 0% (biochemical gate v0.5.1) | — |
+| IS110 holdout confidence | 0.997 | — |
 
 ---
 
@@ -77,7 +77,8 @@ is110_pred = predictor.predict_from_sequence(
 )
 print(is110_pred.tier_a)              # 'DSB_FREE_TRANSEST_RECOMBINASE'
 print(is110_pred.composite)           # True
-print(is110_pred.composite_prob)      # 0.994
+print(is110_pred.composite_prob)      # 0.999
+print(is110_pred.tier_a_gate_override) # False (ESM-2 available; gate not needed)
 ```
 
 ## Command-line interface
@@ -89,6 +90,17 @@ mech-class predict proteins.fasta --output predictions.parquet
 # Predict with GPU-accelerated ESM-2 embeddings
 mech-class predict fanzor_orthologs.fasta --output fanzor_predictions.parquet --device cuda
 ```
+
+### Biochemical gate logic (v0.5.2)
+
+MECH-CLASS uses two hard biochemical gates in `api.py` — both keyed on the same Pfam co-occurrence:
+
+| Gate | Condition | Effect |
+|---|---|---|
+| **Tier-A IS110 gate** (v0.5.2) | PF01548 ∧ PF02371 in pfam_hits | Forces `tier_a = DSB_FREE_TRANSEST_RECOMBINASE`; sets `tier_a_gate_override=True` |
+| **Composite gate** (v0.5.1) | PF01548 ∧ PF02371 in pfam_hits | Allows `composite=True` if ML prob ≥ 0.5; forces `composite=False` otherwise |
+
+The Tier-A gate fixes an OOD inference failure: when ESM-2 embeddings are unavailable (domain-only path), IS110-family proteins land in an out-of-distribution feature space and the LightGBM model incorrectly predicts DSB_NUCLEASE. The biochemical gate overrides this — PF01548 ∧ PF02371 co-occurrence definitionally identifies IS110-family bridge recombinases (Hiraizumi et al. 2024 *Nature*; Vaysset et al. 2025 *Nat Microbiol*), which are always DSB_FREE_TRANSEST_RECOMBINASE.
 
 ---
 
