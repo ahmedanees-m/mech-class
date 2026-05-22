@@ -1,6 +1,6 @@
 # MECH-CLASS Model Card
 
-**Model:** MECH-CLASS v0.5.1
+**Model:** MECH-CLASS v0.5.2
 **Type:** Two-tier mechanism classifier (LightGBM + biochemically-gated composite head)
 **Task:** Predict the catalytic mechanism of DNA-modifying enzymes from sequence + structure
 **Package:** `pip install mech-class`
@@ -33,6 +33,23 @@ decision-making without independent experimental validation.
 | F_seq source | ESM-2 150M mean-pool (from GENOME-ATLAS v0.6.0, pinned; see pyproject.toml) |
 | F_struct source | SaProt 650M mean-pool (AlphaFold structure + Foldseek SA-tokens) |
 | pLDDT gate | F_struct and F_active_site zero-filled when mean active-site pLDDT < 70 |
+
+### Tier-A IS110 hard gate (v0.5.2)
+
+IS110-family bridge recombinases (IS621, IS110, ISDra2, etc.) were misclassified as
+DSB_NUCLEASE when scored without a pre-computed ESM-2 embedding (domain-only inference
+path). Root cause: the LightGBM Tier-A model was trained where all 14 IS110 training
+proteins had real ESM-2 embeddings; at inference time (F_seq zero-filled), the feature
+vector is out-of-distribution and the model incorrectly outputs DSB_NUCLEASE.
+
+Fix: same pattern as composite gate. If PF01548 (DEDD_Tnp_IS110) AND PF02371
+(Transposase_20) are both present, `tier_a` is forced to `DSB_FREE_TRANSEST_RECOMBINASE`.
+`tier_a_gate_override: True` is set in the `Prediction` object for audit trail.
+Confidence = max(ML_DSB_FREE_prob, 0.90).
+
+IS110 proteins with real ESM-2 embeddings (all 14 training examples, holdout A0A7C9VKZ0)
+score DSB_FREE correctly without the gate; the gate exists only for the OOD domain-only
+path. CV F1 metrics and holdout results are unchanged.
 
 ### Composite head design (v0.5.1)
 
@@ -188,7 +205,8 @@ See [UPDATE_STRATEGY.md](UPDATE_STRATEGY.md). Model is versioned with semantic v
 | Version | Date | Change |
 |---|---|---|
 | v0.5.0 | 2026-05-07 | Initial deposit. Composite head: ML-only, FP rate 25% (SpCas9). |
-| v0.5.1 | 2026-05-11 | Add biochemical hard gate (PF01548 ∧ PF02371). Composite FP rate → 0%. |
+| v0.5.1 | 2026-05-11 | Add composite biochemical hard gate (PF01548 ∧ PF02371). Composite FP rate → 0%. |
+| v0.5.2 | 2026-05-22 | Add Tier-A IS110 hard gate. Fixes IS621 DSB_NUCLEASE misclassification in domain-only path. Pin genome-atlas <0.7.0. |
 
 ---
 

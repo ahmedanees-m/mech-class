@@ -6,6 +6,33 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.2] — 2026-05-22
+
+### Fixed
+- **CRITICAL: Tier-A IS110 hard gate** (`api.py`). IS110-family bridge recombinases
+  (e.g. IS621) were misclassified as DSB_NUCLEASE when scored at inference time without
+  a pre-computed ESM-2 embedding (domain-only path). Root cause: the LightGBM Tier-A
+  model was trained where all 14 IS110 proteins had real ESM-2 embeddings; a zero-seq
+  + dom_4/dom_5 feature vector is OOD and the model incorrectly fires DSB_NUCLEASE.
+  Fix: biochemical hard gate — if PF01548 (DEDD_Tnp_IS110) AND PF02371 (Transposase_20)
+  are both present, `tier_a` is forced to `DSB_FREE_TRANSEST_RECOMBINASE` regardless of
+  the ML head output. `tier_a_gate_override: bool` added to `Prediction` for audit trail.
+  Confidence is set to max(ML_DSB_FREE_prob, 0.90). Same gate condition as composite head.
+  IS110 training proteins score correctly without the gate when ESM-2 is available; the
+  gate only fires in the OOD domain-only scenario.
+- **`genome-atlas` upper-bound pin** (`pyproject.toml`). Pinned `atlas` optional extra to
+  `genome-atlas>=0.6.0,<0.7.0`. v0.7.0 removes SIMILAR_TO edges (breaks atlas_domain
+  feature extractor); all 3 new v0.7.0 YAML proteins already in 572-protein training set.
+
+## [0.5.1] — 2026-05-11
+
+### Fixed
+- **Composite head FP gate** (`api.py`). SpCas9 (Q99ZW2) triggered `composite=True`
+  at P=0.753 under the pure ML head. Pre-registered ≤10% FP criterion: FAIL (25%).
+  Fix: biochemical hard gate requiring PF01548 AND PF02371 both present; composite forced
+  False otherwise. `ml_composite_prob_raw` field added for audit trail. FP rate: 0/4 = 0%.
+  Pre-registered criterion: PASS.
+
 ## [0.5.0] — 2026-04-30
 
 ### Added
