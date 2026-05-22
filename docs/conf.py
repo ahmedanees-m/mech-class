@@ -15,7 +15,7 @@ copyright = "2024–2026, Anees Ahmed"
 try:
     from mech_class._version import version as release
 except ImportError:
-    release = "0.5.0"
+    release = "0.5.2"
 version = ".".join(release.split(".")[:2])
 
 # ── Extensions ────────────────────────────────────────────────────────────────
