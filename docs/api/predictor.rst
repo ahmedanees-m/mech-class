@@ -11,8 +11,3 @@ Predictor API
    :undoc-members:
    :show-inheritance:
 
-Helper functions
-----------------
-
-.. autofunction:: mech_class.api._fetch_pfam_hits
-.. autofunction:: mech_class.api._build_feature_row

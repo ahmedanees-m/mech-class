@@ -91,12 +91,15 @@ class Prediction(BaseModel):
 class Predictor:
     """Load trained MECH-CLASS models and predict mechanism from sequence.
 
-    Model artifacts are plain pickled dicts produced by training scripts:
-      tier_a/model.pkl        → {"model": LGBMClassifier, "feature_cols": list,
-                                  "label_encoder": LabelEncoder}
-      composite_head/model.pkl→ {"model": LGBMClassifier, "feature_cols": list}
-      tier_b/{CLASS}/model.pkl→ {"model": LGBMClassifier, "feature_cols": list,
-                                  "label_encoder": LabelEncoder}
+    Model artifacts are plain pickled dicts produced by the training scripts.
+    Each dict contains ``model`` (LGBMClassifier), ``feature_cols`` (list),
+    and optionally ``label_encoder`` (LabelEncoder for multi-class heads).
+
+    Paths under the model directory::
+
+        tier_a/model.pkl           Tier-A 3-class classifier
+        composite_head/model.pkl   Binary IS110 composite head
+        tier_b/{CLASS}/model.pkl   Per-class Tier-B sub-classifiers
 
     Parameters
     ----------
@@ -106,8 +109,6 @@ class Predictor:
         Composite head model dict.
     _tier_b : dict[str, dict]
         Map from Tier-A class name to Tier-B model dict.
-    _esm2_singleton : callable or None
-        Lazy ESM-2 embed function (populated on first call).
     """
 
     def __init__(self, _ta: dict, _comp: dict, _tier_b: dict):

@@ -46,10 +46,9 @@ jobs:
             --cov-fail-under=60
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.11'
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v3
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          file: coverage.xml
+          files: coverage.xml
           flags: unittests
           name: mech-class
           fail_ci_if_error: false

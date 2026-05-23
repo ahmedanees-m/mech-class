@@ -22,21 +22,20 @@ version = ".".join(release.split(".")[:2])
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
-    "sphinx.ext.napoleon",          # Google/NumPy docstring style
+    "sphinx.ext.napoleon",      # NumPy docstring style
     "sphinx.ext.viewcode",
     "sphinx.ext.intersphinx",
-    "sphinx_autodoc_typehints",
-    "myst_nb",                      # Jupyter notebook rendering
+    "myst_parser",              # Markdown (.md) file support
 ]
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 templates_path   = ["_templates"]
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
+html_static_path = []           # empty: no _static content yet (avoids missing-dir warning)
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # ── HTML output ───────────────────────────────────────────────────────────────
 html_theme       = "furo"
 html_title       = "mech-class"
-html_static_path = ["_static"]
 
 html_theme_options = {
     "sidebar_hide_name": False,
@@ -50,24 +49,20 @@ html_theme_options = {
 autodoc_default_options = {
     "members":          True,
     "undoc-members":    False,
+    "private-members":  False,   # exclude _fetch_pfam_hits etc. (avoids ref warnings)
     "show-inheritance": True,
     "member-order":     "bysource",
 }
 autosummary_generate = True
 
 # ── Napoleon (docstring style) ────────────────────────────────────────────────
-napoleon_numpy_docstring   = True
-napoleon_google_docstring  = False
-napoleon_include_init_with_doc = True
+napoleon_numpy_docstring        = True
+napoleon_google_docstring       = False
+napoleon_include_init_with_doc  = True
 
 # ── intersphinx ───────────────────────────────────────────────────────────────
 intersphinx_mapping = {
-    "python":   ("https://docs.python.org/3.10", None),
-    "numpy":    ("https://numpy.org/doc/stable/", None),
-    "pandas":   ("https://pandas.pydata.org/docs/", None),
-    "sklearn":  ("https://scikit-learn.org/stable/", None),
+    "python": ("https://docs.python.org/3.10", None),
+    "numpy":  ("https://numpy.org/doc/stable/", None),
+    "pandas": ("https://pandas.pydata.org/docs/", None),
 }
-
-# ── myst-nb ───────────────────────────────────────────────────────────────────
-nb_execution_mode = "off"   # don't execute notebooks at build time (no GPU/models)
-myst_enable_extensions = ["colon_fence", "deflist"]
