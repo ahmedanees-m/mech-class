@@ -238,9 +238,7 @@ def test_iscro4_tier_a_gate_override(predictor):
     assert pred.tier_a_gate_override is True, (
         "ISCro4 gate must set tier_a_gate_override=True (OOD ML output overridden)"
     )
-    assert pred.tier_a_confidence >= 0.90, (
-        f"ISCro4 gate floor is 0.90; got {pred.tier_a_confidence:.3f}"
-    )
+    assert pred.tier_a_confidence >= 0.90, f"ISCro4 gate floor is 0.90; got {pred.tier_a_confidence:.3f}"
     assert pred.composite is True, "ISCro4 PF01548+PF02371 → composite=True"
 
 

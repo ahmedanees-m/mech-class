@@ -257,9 +257,7 @@ class Predictor:
             tier_a = "DSB_FREE_TRANSEST_RECOMBINASE"
             # Use the ML DSB_FREE probability (index 0); floor at 0.90 to
             # reflect biochemical certainty even in OOD feature space.
-            _dsb_free_idx = list(self._ta["label_encoder"].classes_).index(
-                "DSB_FREE_TRANSEST_RECOMBINASE"
-            )
+            _dsb_free_idx = list(self._ta["label_encoder"].classes_).index("DSB_FREE_TRANSEST_RECOMBINASE")
             tier_a_cf = max(float(proba_a[_dsb_free_idx]), 0.90)
             tier_a_gate_override = True
 
