@@ -74,6 +74,7 @@ docs/api/_autosummary/
 
 # Temporary / scratch scripts
 scripts/_tmp_*.py
+scripts/*_orig.py
 
 # Rclone
 rclone.conf

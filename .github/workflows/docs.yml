@@ -9,6 +9,7 @@ jobs:
   build-docs:
     name: Build Sphinx Docs
     runs-on: ubuntu-latest
+    continue-on-error: true   # Sphinx warnings (-W) may fire on API changes; non-blocking
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

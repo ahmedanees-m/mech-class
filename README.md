@@ -326,7 +326,7 @@ pytest tests/unit/ tests/integration/ -v
 pytest tests/ -v
 ```
 
-**Test suite:** 103 unit + integration tests pass in CI (61% coverage). Regression tests are VM-gated and skip gracefully in CI.
+**Test suite:** 105 unit + integration tests pass in CI (61% coverage). Regression tests are VM-gated and skip gracefully in CI.
 
 ---
 

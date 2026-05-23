@@ -82,6 +82,27 @@ holdout_probes:
       E. coli Tn5 transposase. Accession corrected: P00509 (wrong placeholder) -> Q46731.
       ACTUAL: tier_a=TRANSPOSASE conf=0.869 (PASS), composite=False (TN).
 
+  - name: ISCro4_IS622_OOD_gate_probe
+    accession: D2TGM5
+    role: IS110_OOD_gate_override_probe
+    expected_tier_a: DSB_FREE_TRANSEST_RECOMBINASE
+    expected_composite: true
+    min_confidence: 0.90
+    canonical_pfam: [PF01548, PF02371]
+    reference_doi: "10.1126/science.adz1884"
+    notes: >
+      ISCro4/IS622 bridge recombinase from Citrobacter rodentium ICC168 (326 AA).
+      Added v0.5.3: canonical OOD probe for the v0.5.2 Tier-A IS110 hard gate.
+      D2TGM5 is NOT in training set (no pre-computed ESM-2 embedding). ML alone
+      predicts DSB_NUCLEASE P≈0.57 (OOD failure). The IS110 hard gate fires on
+      PF01548 ∧ PF02371 → overrides to DSB_FREE_TRANSEST_RECOMBINASE with
+      tier_a_gate_override=True and conf≥0.90.
+      Sources: Perry 2025 bioRxiv 2025.05.14.653916; Pelea 2026 Science adz1884.
+      Tested via Predictor.predict_from_sequence() (NOT holdout_features.parquet —
+      D2TGM5 is OOD and gate logic lives in api.py, not in the raw LightGBM model).
+      ACTUAL: tier_a=DSB_FREE_TRANSEST_RECOMBINASE, tier_a_gate_override=True,
+      tier_a_confidence≥0.90, composite=True (PASS).
+
 # Excluded from evaluation set (not OOD):
 
 excluded_probes:
@@ -99,13 +120,22 @@ excluded_probes:
       (P=0.005) -- but this is in-distribution and not a valid OOD datum.
       See LABEL_PROVENANCE.md Data Pipeline Corrections.
 
-# Summary of composite head OOD evaluation (3 valid non-composite probes):
+# Summary of composite head OOD evaluation (4 valid non-composite probes as of v0.5.3):
 #
 #   IS110   (A0A7C9VKZ0): composite=True  P(True)=0.999 -> TP
 #   SpCas9  (Q99ZW2):     composite=True  P(True)=0.753 -> FP  [FAIL]
 #   Bxb1    (Q9B086):     composite=False P(True)=0.118 -> TN
 #   Tn5     (Q46731):     composite=False P(True)=0.379 -> TN
+#   ISCro4  (D2TGM5):     composite=True  gate_override=True   -> TP (gate-fired OOD)
 #
 #   Hold-out composite FP rate (3 OOD non-composite probes): 1/3 = 33%
 #   Pre-registered criterion: FP rate <= 10%  --> FAILS
 #   Documented in MODEL_CARD.md (composite head limitation section).
+#
+# Summary of Tier-A OOD evaluation (6 probes, v0.5.3):
+#   IS110   (A0A7C9VKZ0): DSB_FREE conf≥0.60, requires_esm2=True
+#   Fanzor  (Q8I6T1):     DSB_NUCLEASE conf≥0.70
+#   Bxb1    (Q9B086):     DSB_FREE conf≥0.60, requires_esm2=True
+#   Tn5     (Q46731):     TRANSPOSASE  conf≥0.60, requires_esm2=True
+#   ISCro4  (D2TGM5):     DSB_FREE conf≥0.90, gate_override=True (OOD, no ESM-2)
+#   SpCas9  (Q99ZW2):     DSB_NUCLEASE conf≥0.60 (Tier-A PASS; composite xfail)
