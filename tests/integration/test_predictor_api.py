@@ -120,6 +120,19 @@ _PROBES = [
         "composite": None,
         "canonical_pfam": ["PF07282"],
     },
+    {
+        "label": "ISCro4/IS622 OOD probe (D2TGM5, Citrobacter rodentium; gate-fired)",
+        "accession": "D2TGM5",
+        "expected_tier_a": "DSB_FREE_TRANSEST_RECOMBINASE",
+        "min_conf": 0.90,  # gate floor; conf = max(ML_DSB_FREE, 0.90)
+        "composite": True,
+        "canonical_pfam": ["PF01548", "PF02371"],
+        # requires_esm2=False: Tier-A IS110 hard gate fires on PF01548∧PF02371 alone.
+        # D2TGM5 is OOD (not in training set → zero ESM-2 embedding at inference).
+        # Without gate, ML predicts DSB_NUCLEASE P≈0.57 (IS110 OOD failure, v0.5.2 bug).
+        # Gate overrides ML output → DSB_FREE_TRANSEST_RECOMBINASE, tier_a_gate_override=True.
+        # Sources: Perry 2025 bioRxiv 2025.05.14.653916; Pelea 2026 Science adz1884.
+    },
 ]
 
 
@@ -204,6 +217,31 @@ def test_cas9_composite_false(predictor):
         pfam_hits=["PF13395", "PF18541", "PF16595", "PF18516", "PF16592", "PF16593"],
     )
     assert not pred.composite, f"SpCas9 composite FP: P={pred.composite_prob:.3f}"
+
+
+# ── ISCro4/D2TGM5 Tier-A gate override test ───────────────────────────────────
+
+
+def test_iscro4_tier_a_gate_override(predictor):
+    """D2TGM5 (ISCro4/IS622): Tier-A IS110 hard gate must fire → tier_a_gate_override=True.
+
+    This is the canonical OOD probe for the v0.5.2 IS110 gate fix. D2TGM5 has no
+    pre-computed ESM-2 embedding (not in training set) → ML alone predicts
+    DSB_NUCLEASE P≈0.57 (OOD failure). The gate overrides this to DSB_FREE with
+    conf ≥ 0.90 whenever PF01548 ∧ PF02371 are both present.
+    """
+    seq = _fetch_sequence("D2TGM5")
+    pred = predictor.predict_from_sequence("D2TGM5", seq, pfam_hits=["PF01548", "PF02371"])
+    assert pred.tier_a == "DSB_FREE_TRANSEST_RECOMBINASE", (
+        f"ISCro4 gate must force DSB_FREE_TRANSEST_RECOMBINASE; got {pred.tier_a!r}"
+    )
+    assert pred.tier_a_gate_override is True, (
+        "ISCro4 gate must set tier_a_gate_override=True (OOD ML output overridden)"
+    )
+    assert pred.tier_a_confidence >= 0.90, (
+        f"ISCro4 gate floor is 0.90; got {pred.tier_a_confidence:.3f}"
+    )
+    assert pred.composite is True, "ISCro4 PF01548+PF02371 → composite=True"
 
 
 # ── Prediction object structural tests ───────────────────────────────────────

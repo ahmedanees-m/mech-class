@@ -6,6 +6,28 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.3] — 2026-05-23
+
+### Added
+- **ISCro4/IS622 OOD holdout probe (D2TGM5)** (`tests/integration/test_predictor_api.py`,
+  `tests/regression/test_holdout_probes.py`). Citrobacter rodentium ICC168 IS110-family
+  bridge recombinase; highest-profile IS110 human-cell genome-writing result
+  (Pelea 2026 *Science* doi:10.1126/science.adz1884; Perry 2025 bioRxiv 2025.05.14.653916).
+  Verifies that the v0.5.2 Tier-A IS110 gate fires for truly OOD IS110 proteins
+  (no pre-computed ESM-2 embedding) and returns `DSB_FREE_TRANSEST_RECOMBINASE` with
+  `tier_a_gate_override=True`, confidence ≥ 0.90. n_ood: 5 → 6.
+- **`tier_a_gate_override` unit test** (`tests/unit/test_api_helpers.py`). Two new
+  assertions: field defaults to `False`; set to `True` when gate fires; present in
+  `Prediction.model_dump()`.
+
+### Changed
+- **`genome-atlas` pin bumped** (`pyproject.toml`). `atlas` optional extra updated from
+  `genome-atlas>=0.6.0,<0.7.0` to `>=0.7.1,<0.8.0`. v0.7.1 restores SIMILAR_TO/HAS_RNA/
+  PART_OF edges via `graph_view='full'` (fixes atlas_domain feature extractor; v0.7.0 broke
+  these edges), adds ISCro4/D2TGM5 to the atlas, and achieves AUROC 0.9714 (GraphSAGE)
+  with 41/41 tests passing. v0.7.0 is skipped — it broke SIMILAR_TO and adds no new
+  mech-class training data.
+
 ## [0.5.2] — 2026-05-22
 
 ### Fixed

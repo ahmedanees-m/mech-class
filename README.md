@@ -29,13 +29,14 @@ The key novel contribution is explicit handling of composite catalytic architect
 | `DSB_FREE_TRANSEST_RECOMBINASE` | Transesterification, no DSB | IS110, CAST, Cre, Bxb1, Lambda Int |
 | `TRANSPOSASE` | DDE-family cut-and-paste transposition | Tn5, IS10, Mos1 |
 
-**Performance (v0.5.2, 572-protein gold set):**
+**Performance (v0.5.3, 572-protein gold set):**
 
 | Metric | Value | 95% Bootstrap CI |
 |---|---|---|
 | Tier-A macro-F1 | 0.9862 | [0.953, 1.000] |
 | Composite head FP rate | 0% (biochemical gate v0.5.1) | — |
 | IS110 holdout confidence | 0.997 | — |
+| OOD gate probe (ISCro4/D2TGM5) | ≥0.90 (gate floor) | gate override ✓ |
 
 ---
 
@@ -78,7 +79,17 @@ is110_pred = predictor.predict_from_sequence(
 print(is110_pred.tier_a)              # 'DSB_FREE_TRANSEST_RECOMBINASE'
 print(is110_pred.composite)           # True
 print(is110_pred.composite_prob)      # 0.999
-print(is110_pred.tier_a_gate_override) # False (ESM-2 available; gate not needed)
+print(is110_pred.tier_a_gate_override) # False (ESM-2 available; ML correct w/o gate)
+
+# OOD IS110 probe — no ESM-2 embedding; gate fires (D2TGM5, ISCro4/IS622)
+iscro4_pred = predictor.predict_from_sequence(
+    accession="D2TGM5",
+    sequence="...",
+    pfam_hits=["PF01548", "PF02371"],
+)
+print(iscro4_pred.tier_a)               # 'DSB_FREE_TRANSEST_RECOMBINASE'
+print(iscro4_pred.tier_a_gate_override) # True  (gate fired; ML would have said DSB_NUCLEASE)
+print(iscro4_pred.tier_a_confidence)    # >= 0.90 (gate floor)
 ```
 
 ## Command-line interface
@@ -215,9 +226,9 @@ mech-class/
 │   │   └── test_seq_features.py    ESM-2 constants, embed_sequence (11 tests)
 │   ├── integration/
 │   │   ├── test_evidence_pipeline.py  Aggregate → label pipeline (4 tests)
-│   │   └── test_predictor_api.py      Predictor.load → predict (27 tests; VM-gated for model probes)
+│   │   └── test_predictor_api.py      Predictor.load → predict (29 tests; VM-gated for model probes; ISCro4 gate probe + gate_override test added)
 │   └── regression/
-│       ├── test_holdout_probes.py     5-probe OOD holdout (VM-gated; requires /data/models)
+│       ├── test_holdout_probes.py     5-probe OOD holdout (VM-gated; requires /data/models; ISCro4 gate path in test_predictor_api.py)
 │       └── test_tier_a_macro_f1_drift.py  Tier-A macro-F1 ≥ 0.9862 baseline guard (VM-gated)
 │
 ├── docs/
@@ -243,7 +254,7 @@ mech-class/
 │   ├── fanzor_candidates_summary.json  Fanzor catalog summary statistics
 │   └── is110_triage_summary.json       IS110 triage summary statistics
 │
-├── holdout_set.yaml                5 OOD probe definitions (sequences + expected labels)
+├── holdout_set.yaml                6 OOD probe definitions (sequences + expected labels; v0.5.3 adds ISCro4/D2TGM5)
 ├── pyproject.toml                  Package metadata, dependencies, pytest + coverage config
 ├── .readthedocs.yaml               ReadTheDocs build configuration
 ├── .github/workflows/
@@ -315,7 +326,7 @@ pytest tests/unit/ tests/integration/ -v
 pytest tests/ -v
 ```
 
-**Test suite:** 122 unit + integration tests pass in CI (78% coverage). Regression tests are VM-gated and skip gracefully in CI.
+**Test suite:** 103 unit + integration tests pass in CI (61% coverage). Regression tests are VM-gated and skip gracefully in CI.
 
 ---
 

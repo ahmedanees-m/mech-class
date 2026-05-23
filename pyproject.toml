@@ -41,11 +41,11 @@ seq = ["fair-esm>=2.0", "torch>=2.2.1"]
 # Structure embedding (SaProt 650M) — requires GPU, not packaged
 struct = ["foldseek-python>=2.0", "transformers>=4.39.0", "torch>=2.2.1"]
 # Atlas DuckDB access (for domain feature matrix building)
-# genome-atlas pinned to <0.7.0: v0.7.0 removes SIMILAR_TO edges (breaks atlas_domain
-# feature extractor) and adds 11 new systems, of which all 3 YAML-defined proteins
-# (SaCas9 J7RUA5, CjCas9 Q0P897, NmCas9 A1IQ68) are already in the 572-protein
-# mech-class training set — adapting adds zero new training data.
-atlas = ["duckdb>=0.10.0", "genome-atlas>=0.6.0,<0.7.0"]
+# genome-atlas pinned to >=0.7.1,<0.8.0: v0.7.1 restores SIMILAR_TO/HAS_RNA/PART_OF
+# edges via graph_view='full' secondary view (fixes atlas_domain feature extractor),
+# adds ISCro4/IS622 (D2TGM5) and STRUCTURE_OF benchmark (AUROC 0.9714).
+# v0.7.0 is skipped — it broke SIMILAR_TO and adds no new mech-class training data.
+atlas = ["duckdb>=0.10.0", "genome-atlas>=0.7.1,<0.8.0"]
 # Development toolchain
 dev = ["pytest>=8.1", "pytest-cov>=5.0", "ruff>=0.3", "mypy>=1.9", "pre-commit>=3.7"]
 # Documentation
@@ -67,7 +67,7 @@ include = ["mech_class*"]
 
 [tool.setuptools_scm]
 write_to = "mech_class/_version.py"
-fallback_version = "0.5.0"
+fallback_version = "0.5.3"
 
 [tool.ruff]
 line-length = 120

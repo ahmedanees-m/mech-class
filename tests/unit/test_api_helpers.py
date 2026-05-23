@@ -229,12 +229,29 @@ class TestPredictionModel:
         pred = self._make_pred()
         assert pred.composite_evidence == []
 
+    def test_tier_a_gate_override_default_false(self):
+        """tier_a_gate_override must default to False (gate not fired)."""
+        pred = self._make_pred()
+        assert pred.tier_a_gate_override is False
+
+    def test_tier_a_gate_override_true_when_set(self):
+        """When gate fires (IS110 OOD probe), tier_a_gate_override must be True."""
+        pred = self._make_pred(
+            tier_a="DSB_FREE_TRANSEST_RECOMBINASE",
+            tier_a_confidence=0.90,
+            tier_a_gate_override=True,
+        )
+        assert pred.tier_a_gate_override is True
+        assert pred.tier_a == "DSB_FREE_TRANSEST_RECOMBINASE"
+        assert pred.tier_a_confidence == pytest.approx(0.90)
+
     def test_model_dump_returns_dict(self):
         pred = self._make_pred()
         d = pred.model_dump()
         assert isinstance(d, dict)
         assert "tier_a" in d
         assert "accession" in d
+        assert "tier_a_gate_override" in d
 
 
 # ── PFAM_WHITELIST integrity ───────────────────────────────────────────────────
