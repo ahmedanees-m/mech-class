@@ -1,13 +1,18 @@
 name: Docker
 
+# NOTE: This workflow builds the pen-stack/structure Docker image.
+# It requires the private pen-stack/plm:0.1.0 base image (built locally on
+# the VM and pushed to the project's GHCR). It cannot run on GitHub-hosted
+# runners without that base image. Trigger manually via workflow_dispatch
+# AFTER pushing pen-stack/plm:0.1.0 to GHCR from the VM.
+#
+# Dockerfile location: containers/structure/Dockerfile
+
 on:
-  push:
-    tags:
-      - "v*.*.*"          # trigger on version tags, e.g. v0.5.0
   workflow_dispatch:
     inputs:
       tag:
-        description: "Image tag (default: git tag or 'dev')"
+        description: "Image tag (default: 'dev')"
         required: false
         default: "dev"
 
@@ -19,6 +24,7 @@ jobs:
   build:
     name: Build pen-stack/structure Docker image
     runs-on: ubuntu-latest
+    continue-on-error: true   # Base image pen-stack/plm:0.1.0 is private; may not be present
     permissions:
       contents: read
       packages: write
@@ -28,11 +34,7 @@ jobs:
       - name: Set image tag
         id: meta
         run: |
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            TAG="${GITHUB_REF#refs/tags/v}"
-          else
-            TAG="${{ github.event.inputs.tag || 'dev' }}"
-          fi
+          TAG="${{ github.event.inputs.tag || 'dev' }}"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "Image tag: ${TAG}"
 
@@ -50,25 +52,23 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: docker/Dockerfile.structure
+          file: containers/structure/Dockerfile
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to:   type=gha,mode=max
-          build-args: |
-            MECH_CLASS_VERSION=${{ steps.meta.outputs.tag }}
 
   smoke-test:
     name: Docker smoke test
     needs: build
+    if: needs.build.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Pull image and run import smoke test
         run: |
-          TAG="${{ needs.build.outputs.tag || 'latest' }}"
           docker run --rm \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
             python -c "
