@@ -10,7 +10,13 @@
 
 **Part of [PEN-STACK](https://github.com/ahmedanees-m) · Built on [GENOME-ATLAS](https://github.com/ahmedanees-m/genome-atlas)**
 
-Mechanism classifier for programmable genome-writing enzymes. Given a protein sequence and optional Pfam domain annotations, MECH-CLASS assigns a **Tier-A mechanism class** (nuclease / recombinase / transposase), an optional **Tier-B sub-class**, and a **composite architecture flag** that correctly identifies IS110-family bridge recombinases — proteins that existing classifiers systematically mis-label.
+MECH-CLASS predicts the editing mechanism of any programmable genome-writing enzyme from its protein sequence. It produces three outputs:
+
+- **Tier-A class** — the broad mechanism: `DSB_NUCLEASE` (e.g. Cas9, Fanzor), `DSB_FREE_TRANSEST_RECOMBINASE` (e.g. IS110, Cre, Bxb1), or `TRANSPOSASE` (e.g. Tn5). This answers *"how does this enzyme cut or move DNA?"*
+- **Tier-B sub-class** — a finer functional label within each Tier-A group (e.g. `N1_CRISPR_Cas`, `B3_Programmable_Recombinase`). Useful for distinguishing, say, a Cas12 from a Cas9, or a serine recombinase from a tyrosine recombinase.
+- **Composite architecture flag** — a binary signal (`composite=True/False`) that identifies proteins carrying *two catalytic domains* working together. The canonical case is the IS110 family, which pairs a RuvC-fold nuclease domain with a serine-transposase domain — a combination that existing classifiers collapse to the wrong class. MECH-CLASS is the first tool to detect and correctly label this architecture at proteome scale.
+
+MECH-CLASS is built on top of [GENOME-ATLAS](https://github.com/ahmedanees-m/genome-atlas), the companion knowledge graph from Paper 1 of this series. It reuses the ESM-2 protein embeddings computed for GENOME-ATLAS directly as sequence features, and draws mechanism-linked domain annotations from the GENOME-ATLAS DuckDB database as one of its eight evidence sources. The two tools are designed to be used together: GENOME-ATLAS recommends *which* enzyme to use for a given editing task; MECH-CLASS explains *how* that enzyme works.
 
 ---
 
