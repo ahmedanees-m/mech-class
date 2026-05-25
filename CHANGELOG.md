@@ -6,10 +6,28 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.4] — 2026-05-25
+
+### Changed
+- **Renamed holdout probe** `ISCro4_IS622_OOD_gate_probe` → `ISCro4_pelea_2026` across
+  all files (`holdout_set.yaml`, `holdout_results.json`, `test_predictor_api.py`).
+  Canonical name per UniProt D2TGM5 + Pelea 2026 *Science* adz1884. "IS622" was a
+  deprecated preprint label (Perry 2025 *bioRxiv* 2025.05.14.653916); retained in
+  `aliases` fields for backward compatibility. 6/6 OOD holdout still passes — no model
+  behaviour change, rename only.
+- **`genome-atlas` pin bumped** (`pyproject.toml`). `atlas` optional extra updated from
+  `>=0.7.1,<0.8.0` to `>=0.7.2,<0.8.0`. genome-atlas v0.7.2 adds canonical ISCro4
+  naming (was IS622) with alias-resolution and `load_systems()` / `resolve_system_name()`
+  API required by PEN-COMPARE v3.2.
+
+### Compatibility
+- Required by **PEN-COMPARE v3.2** (ISCro4 canonical naming across all 4 PEN-STACK packages).
+- Backward compatible — all API signatures unchanged; no model retraining.
+
 ## [0.5.3] — 2026-05-23
 
 ### Added
-- **ISCro4/IS622 OOD holdout probe (D2TGM5)** (`tests/integration/test_predictor_api.py`,
+- **ISCro4 OOD holdout probe (D2TGM5)** (`tests/integration/test_predictor_api.py`,
   `tests/regression/test_holdout_probes.py`). Citrobacter rodentium ICC168 IS110-family
   bridge recombinase; highest-profile IS110 human-cell genome-writing result
   (Pelea 2026 *Science* doi:10.1126/science.adz1884; Perry 2025 bioRxiv 2025.05.14.653916).
@@ -24,7 +42,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **`genome-atlas` pin bumped** (`pyproject.toml`). `atlas` optional extra updated from
   `genome-atlas>=0.6.0,<0.7.0` to `>=0.7.1,<0.8.0`. v0.7.1 restores SIMILAR_TO/HAS_RNA/
   PART_OF edges via `graph_view='full'` (fixes atlas_domain feature extractor; v0.7.0 broke
-  these edges), adds ISCro4/D2TGM5 to the atlas, and achieves AUROC 0.9714 (GraphSAGE)
+  these edges), adds ISCro4 (D2TGM5) to the atlas, and achieves AUROC 0.9714 (GraphSAGE)
   with 41/41 tests passing. v0.7.0 is skipped — it broke SIMILAR_TO and adds no new
   mech-class training data.
 

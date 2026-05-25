@@ -121,7 +121,7 @@ _PROBES = [
         "canonical_pfam": ["PF07282"],
     },
     {
-        "label": "ISCro4/IS622 OOD probe (D2TGM5, Citrobacter rodentium; gate-fired)",
+        "label": "ISCro4 OOD gate probe (D2TGM5, Citrobacter rodentium)",
         "accession": "D2TGM5",
         "expected_tier_a": "DSB_FREE_TRANSEST_RECOMBINASE",
         "min_conf": 0.90,  # gate floor; conf = max(ML_DSB_FREE, 0.90)
@@ -131,7 +131,8 @@ _PROBES = [
         # D2TGM5 is OOD (not in training set → zero ESM-2 embedding at inference).
         # Without gate, ML predicts DSB_NUCLEASE P≈0.57 (IS110 OOD failure, v0.5.2 bug).
         # Gate overrides ML output → DSB_FREE_TRANSEST_RECOMBINASE, tier_a_gate_override=True.
-        # Sources: Perry 2025 bioRxiv 2025.05.14.653916; Pelea 2026 Science adz1884.
+        # Canonical name: ISCro4 (UniProt D2TGM5 + Pelea 2026 Science adz1884).
+        # "IS622" is the deprecated preprint label (Perry 2025 bioRxiv 2025.05.14.653916).
     },
 ]
 
@@ -223,7 +224,7 @@ def test_cas9_composite_false(predictor):
 
 
 def test_iscro4_tier_a_gate_override(predictor):
-    """D2TGM5 (ISCro4/IS622): Tier-A IS110 hard gate must fire → tier_a_gate_override=True.
+    """D2TGM5 (ISCro4): Tier-A IS110 hard gate must fire → tier_a_gate_override=True.
 
     This is the canonical OOD probe for the v0.5.2 IS110 gate fix. D2TGM5 has no
     pre-computed ESM-2 embedding (not in training set) → ML alone predicts

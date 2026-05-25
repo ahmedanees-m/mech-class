@@ -51,7 +51,7 @@ IS110 proteins with real ESM-2 embeddings (all 14 training examples, holdout A0A
 score DSB_FREE correctly without the gate; the gate exists only for the OOD domain-only
 path. CV F1 metrics and holdout results are unchanged.
 
-Canonical OOD gate probe (v0.5.3): **ISCro4/IS622 (D2TGM5**, Citrobacter rodentium ICC168).
+Canonical OOD gate probe (v0.5.3): **ISCro4 (D2TGM5**, Citrobacter rodentium ICC168; formerly "IS622" in Perry 2025 *bioRxiv*).
 Not in training set; PF01548 + PF02371 → gate fires; `DSB_FREE_TRANSEST_RECOMBINASE`,
 `tier_a_gate_override=True`, conf = 0.90. Sources: Pelea 2026 *Science* adz1884; Perry 2025 bioRxiv 2025.05.14.653916.
 
@@ -85,7 +85,7 @@ the ML head calibrates confidence, not the detection logic.
 - **Full provenance:** see [LABEL_PROVENANCE.md](LABEL_PROVENANCE.md)
 - **Holdout probes:** IS110 (A0A7C9VKZ0), Fanzor (Q8I6T1), SpCas9 (Q99ZW2),
   Bxb1 (Q9B086, corrected from Q8VVR2), Tn5 (Q46731, corrected from P00509),
-  **ISCro4/IS622 (D2TGM5, v0.5.3 gate probe)** — all absent from training.
+  **ISCro4 (D2TGM5, v0.5.3 gate probe)** — all absent from training.
   Cre (P06956) was intended as a composite evaluation probe but was found to be
   in the training set; it cannot serve as an OOD hold-out.
   See [LABEL_PROVENANCE.md §Data Pipeline Corrections](LABEL_PROVENANCE.md).
@@ -113,11 +113,11 @@ the ML head calibrates confidence, not the detection logic.
 | SpCas9 | Q99ZW2 | DSB_NUCLEASE | 1.000 | No | **PASS** (≥0.6) |
 | Bxb1 | Q9B086 | DSB_FREE_TRANSEST_RECOMBINASE | 0.966 | No | **PASS** (≥0.6) |
 | Tn5 | Q46731 | TRANSPOSASE | 0.869 | No | **PASS** (≥0.6) |
-| ISCro4/IS622 | D2TGM5 | DSB_FREE_TRANSEST_RECOMBINASE | ≥0.90 | **Yes** (OOD gate) | **PASS** (≥0.9) |
+| ISCro4 | D2TGM5 | DSB_FREE_TRANSEST_RECOMBINASE | ≥0.90 | **Yes** (OOD gate) | **PASS** (≥0.9) |
 | Cre | P06956 | DSB_FREE_TRANSEST_RECOMBINASE | 0.9999 | No | In-distribution — not evaluated |
 
 **OOD Tier-A accuracy: 6/6 (100%).** Pre-registration gate passed for all 6 OOD probes.
-D2TGM5 (ISCro4/IS622) is the canonical gate probe: `tier_a_gate_override=True` (v0.5.2 gate fires).
+D2TGM5 (ISCro4) is the canonical gate probe: `tier_a_gate_override=True` (v0.5.2 gate fires).
 
 ### Composite head hold-out evaluation (pre-registered criterion: FP rate ≤ 10%)
 

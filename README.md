@@ -5,7 +5,7 @@
 [![PyPI](https://img.shields.io/pypi/v/mech-class.svg)](https://pypi.org/project/mech-class/)
 [![Docs](https://img.shields.io/badge/docs-readthedocs-blue)](https://mech-class.readthedocs.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.5.3-green)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.5.4-green)](CHANGELOG.md)
 [![genome-atlas](https://img.shields.io/badge/built%20on-genome--atlas-informational)](https://github.com/ahmedanees-m/genome-atlas)
 
 **Part of [PEN-STACK](https://github.com/ahmedanees-m) · Built on [GENOME-ATLAS](https://github.com/ahmedanees-m/genome-atlas)**
@@ -136,9 +136,9 @@ Six pre-registered out-of-distribution probes, none seen during training:
 | SpCas9 | Q99ZW2 | DSB_NUCLEASE | ≥ 0.60 | — |
 | Bxb1 integrase | Q9B086 | DSB_FREE_TRANSEST_RECOMBINASE | ≥ 0.60 | — |
 | Tn5 transposase | Q46731 | TRANSPOSASE | ≥ 0.60 | — |
-| **ISCro4/IS622** (OOD gate) | **D2TGM5** | DSB_FREE_TRANSEST_RECOMBINASE | **≥ 0.90** | gate override ✓ |
+| **ISCro4** (OOD gate) | **D2TGM5** | DSB_FREE_TRANSEST_RECOMBINASE | **≥ 0.90** | gate override ✓ |
 
-D2TGM5 (ISCro4/IS622, *Citrobacter rodentium*) is the canonical gate probe: it is absent from the ESM-2 training embeddings, so the ML model predicts `DSB_NUCLEASE` P≈0.57. The IS110 gate overrides this to `DSB_FREE_TRANSEST_RECOMBINASE` with `tier_a_gate_override=True` and confidence floored at 0.90 (Pelea et al. 2026 *Science*; Perry et al. 2025 *bioRxiv*).
+D2TGM5 (ISCro4, *Citrobacter rodentium*; formerly "IS622" in Perry et al. 2025 *bioRxiv*) is the canonical gate probe: it is absent from the ESM-2 training embeddings, so the ML model predicts `DSB_NUCLEASE` P≈0.57. The IS110 gate overrides this to `DSB_FREE_TRANSEST_RECOMBINASE` with `tier_a_gate_override=True` and confidence floored at 0.90 (Pelea et al. 2026 *Science* adz1884).
 
 Known limitation: SpCas9 fires `composite=True` (P=0.753, FP). The composite head over-fires for proteins with ≥ 4 whitelist Pfam domains and no negative training examples in that regime. Documented in `MODEL_CARD.md`.
 

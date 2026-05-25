@@ -82,17 +82,22 @@ holdout_probes:
       E. coli Tn5 transposase. Accession corrected: P00509 (wrong placeholder) -> Q46731.
       ACTUAL: tier_a=TRANSPOSASE conf=0.869 (PASS), composite=False (TN).
 
-  - name: ISCro4_IS622_OOD_gate_probe
+  - name: ISCro4_pelea_2026
     accession: D2TGM5
+    aliases: ["ISCro4_IS622_OOD_gate_probe"]   # deprecated name used in v0.5.3
     role: IS110_OOD_gate_override_probe
     expected_tier_a: DSB_FREE_TRANSEST_RECOMBINASE
     expected_composite: true
     min_confidence: 0.90
     canonical_pfam: [PF01548, PF02371]
     reference_doi: "10.1126/science.adz1884"
+    secondary_doi: "10.1101/2025.05.14.653916"
     notes: >
-      ISCro4/IS622 bridge recombinase from Citrobacter rodentium ICC168 (326 AA).
-      Added v0.5.3: canonical OOD probe for the v0.5.2 Tier-A IS110 hard gate.
+      ISCro4 bridge recombinase from Citrobacter rodentium ICC168 (326 AA).
+      Canonical name per UniProt D2TGM5 + Pelea 2026 Science. "IS622" was the
+      deprecated preprint label (Perry 2025 bioRxiv); renamed ISCro4 in v0.5.4
+      to match genome-atlas v0.7.2 canonical naming. Added v0.5.3 as canonical
+      OOD probe for the v0.5.2 Tier-A IS110 hard gate.
       D2TGM5 is NOT in training set (no pre-computed ESM-2 embedding). ML alone
       predicts DSB_NUCLEASE P≈0.57 (OOD failure). The IS110 hard gate fires on
       PF01548 ∧ PF02371 → overrides to DSB_FREE_TRANSEST_RECOMBINASE with
@@ -126,7 +131,7 @@ excluded_probes:
 #   SpCas9  (Q99ZW2):     composite=True  P(True)=0.753 -> FP  [FAIL]
 #   Bxb1    (Q9B086):     composite=False P(True)=0.118 -> TN
 #   Tn5     (Q46731):     composite=False P(True)=0.379 -> TN
-#   ISCro4  (D2TGM5):     composite=True  gate_override=True   -> TP (gate-fired OOD)
+#   ISCro4  (D2TGM5):     composite=True  gate_override=True   -> TP (gate-fired OOD; formerly "IS622")
 #
 #   Hold-out composite FP rate (3 OOD non-composite probes): 1/3 = 33%
 #   Pre-registered criterion: FP rate <= 10%  --> FAILS
