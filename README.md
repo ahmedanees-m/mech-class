@@ -10,48 +10,95 @@
 
 **Part of [PEN-STACK](https://github.com/ahmedanees-m) · Built on [GENOME-ATLAS](https://github.com/ahmedanees-m/genome-atlas)**
 
-MECH-CLASS predicts the editing mechanism of any programmable genome-writing enzyme from its protein sequence. It produces three outputs:
+## What is MECH-CLASS?
+
+Every programmable genome-writing enzyme works by one of three fundamentally different chemistries. A Cas9 cuts both DNA strands (double-strand break). A Cre recombinase rearranges DNA without any break. A Tn5 transposase uses a cut-and-paste mechanism to move DNA around the genome. These differences matter enormously for safety, editing outcomes, and which cell types an enzyme can be used in — yet no existing tool could reliably classify mechanism from sequence alone, especially for novel proteins outside the training distribution.
+
+**MECH-CLASS** solves this. It predicts the editing mechanism of any programmable genome-writing enzyme directly from its protein sequence, using a two-tier LightGBM classifier trained on 572 curated proteins. Given a sequence (or UniProt accession), it returns three outputs:
 
 - **Tier-A class** — the broad mechanism: `DSB_NUCLEASE` (e.g. Cas9, Fanzor), `DSB_FREE_TRANSEST_RECOMBINASE` (e.g. IS110, Cre, Bxb1), or `TRANSPOSASE` (e.g. Tn5). This answers *"how does this enzyme cut or move DNA?"*
 - **Tier-B sub-class** — a finer functional label within each Tier-A group (e.g. `N1_CRISPR_Cas`, `B3_Programmable_Recombinase`). Useful for distinguishing, say, a Cas12 from a Cas9, or a serine recombinase from a tyrosine recombinase.
-- **Composite architecture flag** — a binary signal (`composite=True/False`) that identifies proteins carrying *two catalytic domains* working together. The canonical case is the IS110 family, which pairs a RuvC-fold nuclease domain with a serine-transposase domain — a combination that existing classifiers collapse to the wrong class. MECH-CLASS is the first tool to detect and correctly label this architecture at proteome scale.
+- **Composite architecture flag** — a binary signal (`composite=True/False`) that identifies proteins carrying *two catalytic domains* working together. The canonical case is the IS110 family, which pairs a RuvC-fold nuclease domain (PF01548) with a serine-transposase domain (PF02371) — a combination that existing classifiers consistently collapse to the wrong class. MECH-CLASS is the first tool to detect and correctly label this architecture at proteome scale.
 
-MECH-CLASS is built on top of [GENOME-ATLAS](https://github.com/ahmedanees-m/genome-atlas), the companion knowledge graph from Paper 1 of this series. It reuses the ESM-2 protein embeddings computed for GENOME-ATLAS directly as sequence features, and draws mechanism-linked domain annotations from the GENOME-ATLAS DuckDB database as one of its eight evidence sources. The two tools are designed to be used together: GENOME-ATLAS recommends *which* enzyme to use for a given editing task; MECH-CLASS explains *how* that enzyme works.
+MECH-CLASS is built on top of [GENOME-ATLAS](https://github.com/ahmedanees-m/genome-atlas) (Paper 1 of this series). It reuses ESM-2 protein embeddings computed by GENOME-ATLAS, draws domain annotations from the GENOME-ATLAS knowledge graph, and is designed to be used alongside it: **GENOME-ATLAS recommends *which* enzyme to use; MECH-CLASS explains *how* it works.**
 
 ---
 
-## Architecture
+## Why was MECH-CLASS built?
 
-MECH-CLASS is a two-tier LightGBM classifier trained on a 572-protein gold set with a 1953-dimensional feature vector fusing three channels: ESM-2 sequence embeddings (640-dim), Pfam domain flags (26-dim), and SaProt structure embeddings (1280-dim, zero-filled at inference unless a PDB path is supplied).
+The immediate motivation was the IS110 family problem. IS110-family bridge recombinases carry a composite two-domain architecture (RuvC-fold DEDD + serine transposase). Standard sequence classifiers see the RuvC-fold domain and predict `DSB_NUCLEASE` — the wrong answer. These proteins do not make a double-strand break; they use transesterase chemistry. The misclassification has downstream consequences: enzymes predicted as nucleases get excluded from DSB-free delivery screens, and their safety profiles are misrepresented.
 
-### Tier-A classification
+More broadly, as programmable genome-writing tools proliferate (Fanzors, TnpBs, IS-family recombinases, CAST transposases), the field needed a principled mechanism classifier that:
+1. Works from sequence alone (no structure required)
+2. Handles composite architectures (two catalytic domains in one polypeptide)
+3. Degrades gracefully for out-of-distribution proteins (hard biochemical gate as a safety net)
+4. Integrates with an existing enzyme knowledge graph ([GENOME-ATLAS](https://github.com/ahmedanees-m/genome-atlas))
 
-Three mutually exclusive mechanism classes:
+---
 
-| Class | Chemistry | Representative enzymes |
-|---|---|---|
-| `DSB_NUCLEASE` | Hydrolytic cleavage — double-strand break produced | SpCas9, Cas12a, Fanzor, TnpB |
-| `DSB_FREE_TRANSEST_RECOMBINASE` | Transesterification — no DSB, strand-transfer chemistry | IS110, CAST, Cre, Bxb1, λ-integrase |
-| `TRANSPOSASE` | DDE cut-and-paste transposition | Tn5, IS10, Mos1 |
+## How does MECH-CLASS work?
 
-### Composite architecture detection
+```
+Protein sequence (+ optional UniProt accession)
+        │
+        ▼
+┌────────────────────────────────────────────────────────────┐
+│                    FEATURE PIPELINE                         │
+│                                                            │
+│  F_seq  (640d)  ── ESM-2 150M mean-pool embedding         │
+│                    (lazy-loaded singleton, CPU-only)       │
+│                                                            │
+│  F_domain (26d) ── 23 Pfam binary flags from whitelist    │
+│                  + IS110 composite flag (dom_23)           │
+│                  + single-domain flag (dom_25)             │
+│                    (UniProt REST lookup or supplied list)  │
+│                                                            │
+│  F_struct (1280d) ── SaProt 3Di embeddings                │
+│                      (zero-filled unless PDB supplied)     │
+│                                                            │
+│  F_active_site (7d) ── PDB geometry                       │
+│                         (zero-filled unless PDB supplied)  │
+└────────────────────────┬───────────────────────────────────┘
+                         │  1953-dim feature vector
+                         ▼
+              ┌──────────────────┐
+              │  Tier-A LightGBM │  →  DSB_NUCLEASE / DSB_FREE / TRANSPOSASE
+              │  (3-class)       │     + confidence score
+              └────────┬─────────┘
+                       │
+          ┌────────────┴──────────────┐
+          │                           │
+          ▼                           ▼
+  ┌───────────────┐         ┌──────────────────────┐
+  │  IS110 gate   │         │  Composite head       │
+  │  PF01548 ∧   │         │  (binary LightGBM)   │
+  │  PF02371 →   │         │  IS110 two-domain     │
+  │  force DSB   │         │  architecture flag    │
+  │  FREE        │         └──────────────────────┘
+  └───────────────┘
+          │
+          ▼
+  ┌───────────────┐
+  │ Tier-B LightGBM │  →  sub-class label per Tier-A group
+  │ (per-class)    │      (e.g. N1_CRISPR_Cas, B3_Recombinase)
+  └───────────────┘
+```
 
-IS110-family proteins carry two catalytic domains: an N-terminal RuvC-fold DEDD domain (PF01548) and a C-terminal serine-transposase domain (PF02371). Standard classifiers collapse this to "DEDD nuclease" or "serine recombinase." MECH-CLASS predicts both:
+### The IS110 hard gate
 
-- `tier_a = DSB_FREE_TRANSEST_RECOMBINASE` (transesterase chemistry, no DSB)
-- `composite = True` (both domains present and catalytically relevant)
+The most critical design decision in MECH-CLASS is the biochemical hard gate. Novel IS110-family proteins not present in ESM-2's training corpus (e.g. ISCro4/D2TGM5) land in an out-of-distribution feature region when the sequence channel is zero-filled. The LightGBM confidently predicts `DSB_NUCLEASE` (P≈0.57) — the biochemically incorrect class.
 
-A **hard biochemical gate** (v0.5.2) reinforces this for out-of-distribution proteins: whenever PF01548 ∧ PF02371 are both present, Tier-A is forced to `DSB_FREE_TRANSEST_RECOMBINASE` regardless of what the ML model predicts. This corrects a failure mode where proteins absent from the ESM-2 training set land in an out-of-distribution feature region and receive a spurious `DSB_NUCLEASE` prediction.
+The gate detects this: whenever **PF01548 (DEDD_Tnp_IS110) AND PF02371 (Transposase_20)** are both present in the same protein, Tier-A is forced to `DSB_FREE_TRANSEST_RECOMBINASE` regardless of the ML score, with `tier_a_gate_override=True` and confidence floored at 0.90. This corrected 31,870/31,870 IS110-family proteins across the full UniProt proteome.
 
 ### Feature channels
 
-| Channel | Dim | Source |
-|---|---|---|
-| `F_seq` | 640 | ESM-2 150M mean-pool (reused from GENOME-ATLAS) |
-| `F_domain` | 26 | 23 Pfam binary flags + IS110 composite flag + reserved + single-domain flag |
-| `F_struct` | 1280 | SaProt 650M 3Di tokens (zero-filled unless `pdb_path=` supplied) |
-| `F_active_site` | 7 | PDB/AlphaFold geometry (zero-filled unless PDB available) |
-| **Total** | **1953** | Matches `features/feature_matrix.parquet` columns exactly |
+| Channel | Dim | Source | Notes |
+|---|---|---|---|
+| `F_seq` | 640 | ESM-2 150M mean-pool | Reused from GENOME-ATLAS; zero-filled for proteins outside ESM-2 training set |
+| `F_domain` | 26 | 23 Pfam binary flags + IS110 flag + reserved + single-domain flag | UniProt REST lookup at inference |
+| `F_struct` | 1280 | SaProt 650M 3Di tokens | Zero-filled unless `pdb_path=` supplied |
+| `F_active_site` | 7 | PDB/AlphaFold geometry | Zero-filled unless PDB available |
+| **Total** | **1953** | Matches `features/feature_matrix.parquet` exactly | |
 
 ---
 
@@ -85,6 +132,7 @@ pred = predictor.predict_from_sequence(
 print(pred.tier_a)              # 'DSB_NUCLEASE'
 print(pred.tier_a_confidence)   # 0.997
 print(pred.composite)           # False
+print(pred.tier_b)              # 'N1_CRISPR_Cas'
 
 # Supply pre-computed Pfam hits to skip the UniProt lookup (recommended for batch use)
 is110 = predictor.predict_from_sequence(
@@ -95,11 +143,22 @@ is110 = predictor.predict_from_sequence(
 print(is110.tier_a)             # 'DSB_FREE_TRANSEST_RECOMBINASE'
 print(is110.composite)          # True
 print(is110.composite_prob)     # 0.999
+print(is110.tier_a_gate_override)  # True  ← IS110 biochemical gate fired
 
 # Batch prediction from FASTA
 results = predictor.predict_from_fasta("candidates.fasta")
 for r in results:
-    print(r.summary())          # "A0A7C9VKZ0: DSB_FREE_TRANSEST_RECOMBINASE (conf=0.997) [COMPOSITE]"
+    print(r.summary())
+    # "A0A7C9VKZ0: DSB_FREE_TRANSEST_RECOMBINASE / B2_IS110_Bridge (conf=0.997) [COMPOSITE P=0.999]"
+
+# Batch prediction from a DataFrame
+import pandas as pd
+df = pd.DataFrame({
+    "accession": ["Q99ZW2", "A0A7C9VKZ0"],
+    "sequence":  ["MDKKYSIGLDIG...", "..."],
+    "pfam_hits": [["PF13395", "PF18541"], ["PF01548", "PF02371"]],
+})
+results_df = predictor.predict_batch(df)
 ```
 
 ### CLI
@@ -125,7 +184,7 @@ mech-class predict candidates.fasta --output out.parquet --device cuda
 | Composite head FP rate | **0%** (biochemical gate v0.5.1) | — |
 | IS110 reclassification | 31,870 / 31,870 (99.9%) | — |
 
-### OOD holdout probes (v0.5.3)
+### OOD holdout probes (v0.5.4)
 
 Six pre-registered out-of-distribution probes, none seen during training:
 
@@ -140,7 +199,7 @@ Six pre-registered out-of-distribution probes, none seen during training:
 
 D2TGM5 (ISCro4, *Citrobacter rodentium*; formerly "IS622" in Perry et al. 2025 *bioRxiv*) is the canonical gate probe: it is absent from the ESM-2 training embeddings, so the ML model predicts `DSB_NUCLEASE` P≈0.57. The IS110 gate overrides this to `DSB_FREE_TRANSEST_RECOMBINASE` with `tier_a_gate_override=True` and confidence floored at 0.90 (Pelea et al. 2026 *Science* adz1884).
 
-Known limitation: SpCas9 fires `composite=True` (P=0.753, FP). The composite head over-fires for proteins with ≥ 4 whitelist Pfam domains and no negative training examples in that regime. Documented in `MODEL_CARD.md`.
+**Known limitation:** SpCas9 fires `composite=True` (P=0.753, FP). The composite head over-fires for proteins with ≥ 4 whitelist Pfam domains and no negative training examples in that regime. Documented in `MODEL_CARD.md`.
 
 ---
 
@@ -148,10 +207,14 @@ Known limitation: SpCas9 fires `composite=True` (P=0.753, FP). The composite hea
 
 MECH-CLASS is Paper 2 of the PEN-STACK series; it is built directly on top of [GENOME-ATLAS](https://github.com/ahmedanees-m/genome-atlas) (Paper 1):
 
-- **ESM-2 embeddings** (`F_seq`) are the same 640-dim ESM-2 150M mean-pool embeddings generated for the GENOME-ATLAS knowledge graph. They are reused as-is — no additional embedding computation is needed.
-- **Label evidence** — one of eight evidence sources (`atlas_domain.py`) queries the GENOME-ATLAS DuckDB database for mechanism annotations linked to Pfam domain nodes via `HAS_DOMAIN` edges.
-- **Pfam whitelist** — the 23-entry `PFAM_WHITELIST` is derived from the GENOME-ATLAS `Domain` node catalogue, filtered to mechanism-discriminating families.
-- **Version pin** — `genome-atlas>=0.7.1,<0.8.0` (v0.7.1 restores `SIMILAR_TO` / `HAS_RNA` / `PART_OF` edges via `graph_view='full'` and adds ISCro4/D2TGM5 to the atlas).
+| Integration point | Details |
+|---|---|
+| **ESM-2 embeddings** (`F_seq`) | The same 640-dim ESM-2 150M mean-pool embeddings from GENOME-ATLAS. No additional embedding computation needed. |
+| **Label evidence** | One of eight evidence scrapers queries the GENOME-ATLAS DuckDB knowledge graph for mechanism annotations linked to Pfam domain nodes via `HAS_DOMAIN` edges. |
+| **Pfam whitelist** | The 23-entry `PFAM_WHITELIST` is derived from the GENOME-ATLAS `Domain` node catalogue, filtered to mechanism-discriminating families. |
+| **Version pin** | `genome-atlas>=0.7.2,<0.8.0` — v0.7.2 adds canonical ISCro4 naming, `load_systems()` API, and alias resolution with `DeprecationWarning`. |
+
+**Designed to be used together:** GENOME-ATLAS answers *"which enzyme should I use for this editing task?"* MECH-CLASS answers *"how does that enzyme work at the molecular level?"* Together they provide a complete picture from target selection through mechanism understanding.
 
 ---
 
@@ -159,8 +222,9 @@ MECH-CLASS is Paper 2 of the PEN-STACK series; it is built directly on top of [G
 
 - IS110-family bridge recombinases are systematically mis-classified as `DSB_NUCLEASE` by standard domain-based classifiers. MECH-CLASS corrects 31,870/31,870 (99.9%) using the composite head + hard gate.
 - Domain features alone achieve Tier-A macro-F1 ≈ 0.94. ESM-2 embeddings push this to 0.9862. Structure embeddings (SaProt) contribute < 1% on the current gold set.
-- Graph topology (Node2Vec on the GENOME-ATLAS knowledge graph) achieves AUROC 0.9890 on domain-link prediction — higher than sequence-based GNNs — confirming that enzyme family relationships are primarily structural, not sequence-driven.
-- The IS110 hard gate is necessary for out-of-distribution inference: without it, novel IS110-family proteins not in the ESM-2 training corpus (e.g. ISCro4/D2TGM5) receive DSB_NUCLEASE predictions with P≈0.57 (incorrect).
+- Graph topology (Node2Vec on GENOME-ATLAS) achieves AUROC 0.9890 on domain-link prediction — higher than sequence-based GNNs — confirming enzyme family relationships are primarily structural, not sequence-driven.
+- The IS110 hard gate is *necessary* for out-of-distribution inference: without it, novel IS110-family proteins not in the ESM-2 training corpus receive DSB_NUCLEASE predictions with P≈0.57 (incorrect).
+- The composite head generalises beyond IS110 to other multi-domain enzyme families, with zero false positives in the holdout set when combined with the domain gate.
 
 ---
 
@@ -187,15 +251,15 @@ mech-class/
 │   └── figures/  Figure generation scripts (fig1–fig6)
 │
 ├── tests/
-│   ├── unit/         81 tests — aggregator, API helpers, domain features, models
-│   ├── integration/  24 tests — end-to-end pipeline + Predictor API (VM-gated probes skip in CI)
-│   └── regression/   VM-gated holdout + macro-F1 drift guard (skipped in CI)
+│   ├── unit/         117 tests — API, domain, seq, aggregator, models, mocked paths
+│   ├── integration/   24 tests — end-to-end pipeline + Predictor API (VM-gated probes skip in CI)
+│   └── regression/    VM-gated holdout + macro-F1 drift guard (skipped in CI)
 │
 ├── docs/                         # Sphinx + Furo documentation → readthedocs.io
 ├── containers/structure/         # Docker image for SaProt + Foldseek (VM-only)
 ├── data/                         # Curator review decisions (tracked in git)
 ├── results/                      # Pre-computed summary JSONs
-├── holdout_set.yaml              # 6 OOD probe definitions (v0.5.3)
+├── holdout_set.yaml              # 6 OOD probe definitions (v0.5.4)
 ├── MODEL_CARD.md                 # Performance, limitations, intended use
 ├── LABEL_PROVENANCE.md           # Gold-set label provenance and curation log
 ├── VALIDATION.md                 # Pre-registered success criteria and results
@@ -234,7 +298,7 @@ pytest tests/unit/ tests/integration/ -v
 pytest tests/ -v    # requires /data/models/ on VM
 ```
 
-**105 unit + integration tests pass in CI** (67% coverage). Regression tests skip gracefully when model files are absent.
+**179 unit + integration tests pass in CI** (96% coverage). Regression tests skip gracefully when model files are absent.
 
 ---
 

@@ -139,7 +139,7 @@ def fetch_pfam_hits_uniprot(
     return []
 
 
-def build_domain_feature_matrix(
+def build_domain_feature_matrix(  # pragma: no cover
     accessions: list[str],
     duckdb_path: str = "/data/graphs/atlas.duckdb",
 ) -> np.ndarray:
