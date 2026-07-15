@@ -1,6 +1,6 @@
 """MECH-CLASS: Mechanism classification for programmable genome-writing enzymes.
 
-Part of PEN-STACK. Builds on GENOME-ATLAS via genome-atlas>=0.6.0.
+Part of PEN-STACK. Builds on GENOME-ATLAS via genome-atlas>=0.7.2.
 """
 
 try:

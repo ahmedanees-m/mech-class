@@ -14,7 +14,7 @@ Run via:
         -v ~/pen-stack/data:/data \\
         -v ~/pen-stack/code/repos/mech-class:/pkg \\
         -w /pkg pen-stack/structure:0.1.0 \\
-        bash -c "pip install -e . --quiet && python scripts/40_predict_fanzor_catalog.py"
+        bash -c "pip install -e . --quiet && python scripts/41_predict_fanzor_catalog.py"
 
 Inputs:
   /data/graphs/atlas.duckdb                   -- protein metadata + domain edges

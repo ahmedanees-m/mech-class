@@ -13,9 +13,9 @@ Installation
 Loading trained models
 ----------------------
 
-Trained model artifacts are provided as raw data files
-(``mech-class v1.0``). Until then, point ``Predictor.load()`` at the
-local model directory produced by the training scripts:
+Trained model artifacts are provided as raw data files. Point
+``Predictor.load()`` at the local model directory produced by the
+training scripts:
 
 .. code-block:: python
 
@@ -121,12 +121,13 @@ The IS110 family (e.g. ``A0A7C9VKZ0``) encodes a bipartite catalytic
 mechanism: an N-terminal RuvC-fold DEDD domain (PF01548) and a C-terminal
 serine transposase domain (PF02371). Domain-only lookup (InterPro CL0219 clan)
 systematically mis-classifies these as ``DSB_NUCLEASE``. The composite head
-corrects this to ``DSB_FREE_TRANSEST_RECOMBINASE`` for 99.9% of the 31,870
-IS110-family proteins in the GENOME-ATLAS catalog.
+corrects this to ``DSB_FREE_TRANSEST_RECOMBINASE`` for 31,870 of 31,871
+(99.997%) IS110-family proteins in the GENOME-ATLAS catalog.
 
 .. note::
 
-   The composite head has a **25% false-positive rate** on the non-IS110 probe
-   set (SpCas9 fires as composite=True, P=0.753). Treat the composite flag as a
-   triage signal for IS110-like architecture, not a definitive classifier.
-   See ``MODEL_CARD.md`` Limitation 3 for details.
+   The composite flag is gated on the IS110 domain signature: it fires only
+   when both PF01548 and PF02371 are present. On the non-IS110 hold-out probes
+   (SpCas9, Bxb1, Tn5, Cre) the gate blocks every composite call, giving a 0%
+   false-positive rate. Treat the composite flag as a triage signal for
+   IS110-like architecture. See ``MODEL_CARD.md`` for details.

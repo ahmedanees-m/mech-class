@@ -184,7 +184,7 @@ def run():
             tier_a_proba    = None
             tier_b_pred     = e["predicted_tier_b"]
             tier_b_conf     = e["tier_b_confidence"]
-            composite_flag  = e["composite"]
+            composite_flag  = bool(e["composite"]) and ("PF01548" in pfam and "PF02371" in pfam)
             print(f"  [reusing existing results]")
         else:
             # Q9B086: compute fresh
@@ -223,7 +223,7 @@ def run():
             # Composite
             Xrow_comp = make_row_df(feat, comp_fcols)
             cp_proba  = comp_model.predict_proba(Xrow_comp.values.astype(np.float32))[0]
-            composite_flag = bool(cp_proba[1] > 0.5)
+            composite_flag = bool(cp_proba[1] > 0.5) and ("PF01548" in pfam and "PF02371" in pfam)
 
             tier_b_pred = tb_pred
             tier_b_conf = tb_conf
@@ -237,7 +237,7 @@ def run():
         conf_ok   = (tier_a_conf >= probe["min_confidence"])
         # Tier-B: UNKNOWN is always acceptable per the pre-registration
         tier_b_ok = (probe["expected_tier_b"] is None) or (tier_b_pred == probe["expected_tier_b"])
-        # Composite: SpCas9 FP is documented, not a failure criterion
+        # Composite is reported, not a pass/fail criterion
         comp_ok   = True  # composite not a pass/fail gate
 
         all_pass  = tier_a_ok and conf_ok and tier_b_ok
@@ -277,7 +277,6 @@ def run():
     print(f"{'Probe':<30} {'Accession':<12} {'Tier-A Pred':<35} {'Conf':>5}  {'Composite'}  Pass")
     print("-" * 105)
     for r in results:
-        comp_str = f"{'True (FP)' if r['composite'] and r['expected_tier_a'] == 'DSB_NUCLEASE' and r['name'] != 'IS110_representative' else str(r['composite'])}"
         pass_str = "PASS" if r["all_pass"] else "FAIL"
         print(f"  {r['name']:<28} {r['accession']:<12} {r['predicted_tier_a']:<35} {r['tier_a_confidence']:>5.3f}  {str(r['composite']):<9}  {pass_str}")
 
@@ -288,8 +287,8 @@ def run():
     print("Notes:")
     print("  * Tier-B UNKNOWN = acceptable (ungated); Tier-B model has < 3")
     print("    sub-class examples for TRANSPOSASE and low-n for DSB_NUCLEASE.")
-    print("  * SpCas9 composite=True is a documented FP (P=0.753): composite head")
-    print("    over-fires on multi-Pfam proteins (5 Cas9-specific domains).")
+    print("  * SpCas9 lacks PF01548/PF02371, so the domain gate forces")
+    print("    composite=False (raw ML score 0.753).")
     print("  * Bxb1 probe corrected: O25753 (H.pylori HP_1128, 84 AA) -> Q9B086")
     print("    (Mycobacteriophage Bxb1 integrase, 500 AA). Q9B086 absent from training.")
 
@@ -301,7 +300,7 @@ def run():
         "probes":    results,
         "notes": {
             "tier_b_policy":   "UNKNOWN = acceptable (ungated)",
-            "composite_fp":    "SpCas9 composite=True FP (P=0.753); documented limitation",
+            "composite_fp":    "SpCas9 gated to composite=False (raw ML score 0.753)",
             "bxb1_correction": "O25753->Q9B086 (accession error fix; proteins:[] in foundational_systems.yaml)",
         },
     }
@@ -329,7 +328,7 @@ def run():
         "",
         "Footnotes:",
         "  a Tier-B = UNKNOWN is acceptable (ungated); small training N prevents sub-class discrimination.",
-        "  b SpCas9 composite head fires as FP (P=0.75); documented; composite gate uses domain count heuristic.",
+        "  b SpCas9 composite gated to False: lacks PF01548/PF02371 (raw ML score 0.75).",
         "  c Bxb1 accession corrected: O25753 (H.pylori, wrong) -> Q9B086 (Mycobacteriophage Bxb1, 500 AA).",
         "    Q9B086 is absent from training data (verified).",
     ]

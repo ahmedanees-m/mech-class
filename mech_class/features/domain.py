@@ -90,7 +90,7 @@ def extract_domain_features(
 
     # dom_23: IS110 composite
     vec[23] = 1.0 if (RUVC_DEDD_PF in pfam_set and TNP_SERINE_PF in pfam_set) else 0.0
-    # dom_24: editor fusion (reserved; always 0 in v1.0)
+    # dom_24: editor fusion (reserved; always 0)
     # dom_25: single-domain flag
     vec[25] = 1.0 if len(wl_hits) == 1 else 0.0
 

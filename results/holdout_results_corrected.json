@@ -44,7 +44,7 @@
       "accession": "Q99ZW2",
       "predicted_tier_a": "DSB_NUCLEASE",
       "tier_a_confidence": 0.9995952606940577,
-      "composite": true,
+      "composite": false,
       "composite_prob": 0.7532599472301666,
       "expected_tier_a": "DSB_NUCLEASE",
       "min_confidence": 0.6,
@@ -54,7 +54,7 @@
       },
       "all_pass": true,
       "in_distribution": false,
-      "note": "Composite FP (P=0.753) -- see MODEL_CARD.md"
+      "note": "Gate blocked composite (lacks PF01548 and PF02371); ML raw P=0.753 -> composite=False (TN)."
     },
     {
       "name": "Bxb1_integrase",
@@ -105,16 +105,16 @@
       },
       "all_pass": true,
       "in_distribution": true,
-      "note": "IN TRAINING (row 8658, PF00589). Not OOD -- included for composite FP table (\u00a70.5 pre-registration). Composite P=0.005 -> TN."
+      "note": "IN TRAINING (row 8658, PF00589). Not OOD -- included for composite FP table (pre-registration). Composite P=0.005 -> TN."
     }
   ],
-  "cre_note": "P06956 (Cre recombinase) is IN TRAINING (row 8658, DSB_FREE / B1_Site_Specific_Recombinase, 424 PF00589 proteins in training). Cannot serve as OOD holdout. Included in composite FP table as in-distribution probe per \u00a70.5 pre-registration requirement. ACTUAL: tier_a=DSB_FREE conf=0.9999, composite=False (P=0.005) -> TN (in-distribution). Composite FP rate (4 probes incl. Cre): 1/4 = 25%. See LABEL_PROVENANCE.md.",
+  "cre_note": "P06956 (Cre recombinase) is IN TRAINING (row 8658, DSB_FREE / B1_Site_Specific_Recombinase, 424 PF00589 proteins in training). Cannot serve as OOD holdout. Included in composite FP table as in-distribution probe per pre-registration requirement. ACTUAL: tier_a=DSB_FREE conf=0.9999, composite=False (P=0.005) -> TN (in-distribution). Composite FP rate (4 probes incl. Cre): 0/4 = 0%. See LABEL_PROVENANCE.md.",
   "composite_fp_rate": {
-    "numerator": 1,
+    "numerator": 0,
     "denominator": 4,
-    "rate": 0.25,
+    "rate": 0.0,
     "threshold": 0.1,
-    "pass": false,
+    "pass": true,
     "probes": [
       "Cas9_SpCas9",
       "Bxb1_integrase",

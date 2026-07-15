@@ -1,4 +1,4 @@
-"""Public Predictor API for mech-class v0.5.2.
+"""Public Predictor API for mech-class.
 
 Loads trained LightGBM models (stored as plain dicts from training scripts) and
 exposes a clean Python API for mechanism prediction from sequence.
@@ -58,7 +58,7 @@ PFAM_WHITELIST = [
 # URL for trained model artifacts (filled once hosted)
 # Set MECH_CLASS_MODEL_DIR env var to override local cache path.
 _MODELS_URL = ""  # set once model artifacts are hosted
-_DEFAULT_CACHE_DIR = Path.home() / ".cache" / "mech-class" / "models" / "v1.0"
+_DEFAULT_CACHE_DIR = Path.home() / ".cache" / "mech-class" / "models"
 
 
 class Prediction(BaseModel):
@@ -127,7 +127,7 @@ class Predictor:
         model_dir: str | Path | None = None,
         *,
         download: bool = True,
-        device: str = "cpu",  # reserved for future SaProt GPU inference; unused in v0.5
+        device: str = "cpu",  # reserved for future SaProt GPU inference
     ) -> Predictor:
         """Load trained models from a local directory.
 
@@ -136,7 +136,7 @@ class Predictor:
         model_dir : path-like, optional
             Directory containing ``tier_a/model.pkl``,
             ``composite_head/model.pkl``, and ``tier_b/*/model.pkl``.
-            Defaults to ``~/.cache/mech-class/models/v1.0/`` (local cache).
+            Defaults to ``~/.cache/mech-class/models/`` (local cache).
         download : bool
             If True and model_dir is the default cache, attempt to download
             model artifacts if not already cached.  Set False to skip.
@@ -224,7 +224,7 @@ class Predictor:
             seq_emb = np.zeros(640, dtype=np.float32)
 
         # --- F_struct channel (zero-filled; optional SaProt) ------------
-        # pdb_path support deferred to v0.6.0; always zero-fill for now.
+        # pdb_path structure channel not yet implemented; always zero-fill.
         # channels_used.append("F_struct")  # uncomment when implemented
 
         # --- Build feature DataFrame ------------------------------------
@@ -237,21 +237,18 @@ class Predictor:
         tier_a = self._ta["label_encoder"].inverse_transform([pred_idx])[0]
         tier_a_cf = float(proba_a[pred_idx])
 
-        # --- Tier-A IS110 hard gate (v0.5.2) ----------------------------
+        # --- Tier-A IS110 hard gate -------------------------------------
         # PF01548 (DEDD_Tnp_IS110, RuvC-fold N-terminal) AND PF02371
         # (Transposase_20, serine-Tnp C-terminal) co-occurrence definitionally
         # identifies IS110-family bridge recombinases, which cleave and rejoin
         # DNA without a DSB intermediate (DSB_FREE_TRANSEST_RECOMBINASE).
         #
-        # Root cause for this gate: at inference time the ESM-2 channel is
-        # zero-filled for novel proteins (no pre-computed embedding). The
-        # LightGBM was trained where all 14 IS110 training proteins had real
-        # ESM-2 embeddings; a zero-seq + dom_4/dom_5 feature vector is OOD and
-        # the model incorrectly outputs DSB_NUCLEASE (~0.57-0.70 confidence).
-        # Domain-only synthetic probes confirm this failure mode. The gate
-        # overrides the ML decision to the biochemically correct class.
-        # (IS110 training proteins score DSB_FREE correctly when ESM-2 is
-        # available; this gate only fires when their domain pattern is present.)
+        # At inference time the ESM-2 channel is zero-filled for novel proteins
+        # with no pre-computed embedding. The Tier-A model was trained on IS110
+        # proteins that all carried real ESM-2 embeddings, so a zero-seq domain
+        # vector is out-of-distribution and the model outputs DSB_NUCLEASE. The
+        # gate overrides that decision to the biochemically correct class; IS110
+        # proteins with an ESM-2 embedding score DSB_FREE without the gate.
         _is110_tier_a_gate = "PF01548" in pfam_set and "PF02371" in pfam_set
         tier_a_gate_override = False
         if _is110_tier_a_gate and tier_a != "DSB_FREE_TRANSEST_RECOMBINASE":
@@ -482,7 +479,7 @@ def _download_models(target_dir: Path) -> None:
     after uploading the trained models following peer review.
     """
     raise RuntimeError(
-        "Model download not yet configured for mech-class v0.5.0.\n"
+        "Model download not yet configured for mech-class.\n"
         "Please pass model_dir= explicitly:\n\n"
         "  predictor = Predictor.load('/path/to/models')\n\n"
         "Trained model artifacts are provided as raw data files."

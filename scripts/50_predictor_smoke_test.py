@@ -10,7 +10,7 @@ canonical_pfam ensures domain features match the training distribution exactly.
 Probes:
   IS110 (holdout)    A0A7C9VKZ0  DSB_FREE  composite=True  PF01548+PF02371
   Fanzor (holdout)   Q8I6T1      DSB_NUC   composite=False PF07282
-  SpCas9 (holdout)   Q99ZW2      DSB_NUC   composite=FP    Cas9 Pfam set
+  SpCas9 (holdout)   Q99ZW2      DSB_NUC   composite=False Cas9 Pfam set
   Bxb1 (holdout)     Q9B086      DSB_FREE  composite=False PF07508+PF00239
   Tn5 (holdout)      Q46731      TRANSP    composite=False PF01609
   Cre (in-dist)      P06956      DSB_FREE  composite=False PF00589
@@ -27,7 +27,7 @@ Run via:
         bash -c "pip install lightgbm --quiet && \\
                  python scripts/50_predictor_smoke_test.py --model-dir /data/models"
 
-Expected: >= 9/10 PASS (SpCas9 composite FP is documented; does not count).
+Expected: >= 9/10 PASS.
 """
 from __future__ import annotations
 
@@ -62,11 +62,11 @@ PROBES = [
         "canonical_pfam":  ["PF07282"],
     },
     {
-        "label":           "SpCas9 (holdout; composite FP documented)",
+        "label":           "SpCas9 (holdout)",
         "accession":       "Q99ZW2",
         "expected_tier_a": "DSB_NUCLEASE",
         "min_conf":        0.60,
-        "composite":       None,   # composite=True FP is documented; skip assertion
+        "composite":       False,  # lacks PF01548/PF02371; domain gate forces False
         "canonical_pfam":  ["PF13395", "PF18541", "PF16595", "PF18516", "PF16592", "PF16593"],
     },
     {
@@ -147,7 +147,7 @@ def _fetch_sequence(accession: str) -> str:
 
 
 def run(model_dir: str) -> int:
-    """Run smoke test.  Returns number of hard failures (excluding SpCas9 composite)."""
+    """Run smoke test.  Returns number of hard failures."""
     sep = "=" * 72
     print(sep)
     print("MECH-CLASS Predictor API smoke test (10 proteins)")

@@ -25,15 +25,14 @@ def main() -> None:
 @click.option(
     "--output", "-o", default="predictions.parquet", help="Output Parquet file (default: predictions.parquet)."
 )
-@click.option("--device", default="cpu", help="Inference device: cpu or cuda.")
-def predict(fasta_file: str, model_dir: str, output: str, device: str) -> None:
+def predict(fasta_file: str, model_dir: str, output: str) -> None:
     """Predict mechanism class for all sequences in a FASTA file."""
     import pandas as pd
 
     from mech_class.api import Predictor
 
     click.echo(f"Loading models from {model_dir}...")
-    predictor = Predictor.load(model_dir=Path(model_dir), device=device)
+    predictor = Predictor.load(model_dir=Path(model_dir))
 
     click.echo(f"Running predictions on {fasta_file}...")
     results = predictor.predict_from_fasta(fasta_file)
@@ -53,12 +52,11 @@ def predict(fasta_file: str, model_dir: str, output: str, device: str) -> None:
 @click.argument("sequence")
 @click.option("--accession", "-a", default="QUERY", help="Accession label.")
 @click.option("--model-dir", "-m", type=click.Path(), required=True)
-@click.option("--device", default="cpu")
-def predict_one(sequence: str, accession: str, model_dir: str, device: str) -> None:
+def predict_one(sequence: str, accession: str, model_dir: str) -> None:
     """Predict mechanism for a single sequence string."""
     from mech_class.api import Predictor
 
-    predictor = Predictor.load(model_dir=Path(model_dir), device=device)
+    predictor = Predictor.load(model_dir=Path(model_dir))
     pred = predictor.predict_from_sequence(accession, sequence)
 
     click.echo(f"Accession:         {pred.accession}")

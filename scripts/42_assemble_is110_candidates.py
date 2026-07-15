@@ -1,4 +1,4 @@
-"""Stage 1: Assemble IS110 composite candidates from UniProt.
+"""Assemble IS110 composite candidates from UniProt.
 
 Queries UniProt for ALL proteins annotated with BOTH:
   PF01548 (DEDD_Tnp_IS110 -- RuvC-like N-terminal of IS110-family)
@@ -17,7 +17,7 @@ Run via:
         -v ~/pen-stack/data:/data \\
         -v ~/pen-stack/code/repos/mech-class:/pkg \\
         -w /pkg pen-stack/structure:0.1.0 \\
-        bash -c "pip install lightgbm --quiet && python scripts/41_stage1_pfam_filter.py"
+        bash -c "pip install lightgbm --quiet && python scripts/42_assemble_is110_candidates.py"
 
 Expected output:
   /data/predictions/is110_triage/stage1_candidates.parquet

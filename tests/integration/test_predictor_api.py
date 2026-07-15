@@ -54,11 +54,11 @@ _PROBES = [
         "canonical_pfam": ["PF07282"],
     },
     {
-        "label": "SpCas9 (holdout; composite FP documented)",
+        "label": "SpCas9 (holdout)",
         "accession": "Q99ZW2",
         "expected_tier_a": "DSB_NUCLEASE",
         "min_conf": 0.60,
-        "composite": None,  # xfail; composite FP documented in MODEL_CARD.md
+        "composite": None,  # asserted False by test_cas9_composite_false (domain gate)
         "canonical_pfam": ["PF13395", "PF18541", "PF16595", "PF18516", "PF16592", "PF16593"],
     },
     {
@@ -205,12 +205,8 @@ def test_composite(predictor, probe):
     )
 
 
-@pytest.mark.xfail(
-    reason="SpCas9 composite=True (FP, P~0.753). Documented in MODEL_CARD.md Limitation 3. "
-    "Composite head over-fires for proteins with >=4 whitelist Pfam domains."
-)
 def test_cas9_composite_false(predictor):
-    """SpCas9 should ideally be composite=False (FP documented, xfail accepted)."""
+    """SpCas9 lacks PF01548/PF02371, so the domain gate forces composite=False."""
     seq = _fetch_sequence("Q99ZW2")
     pred = predictor.predict_from_sequence(
         "Q99ZW2",

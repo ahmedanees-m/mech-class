@@ -88,7 +88,7 @@ Protein sequence (+ optional UniProt accession)
 
 The most critical design decision in MECH-CLASS is the biochemical hard gate. Novel IS110-family proteins not present in ESM-2's training corpus (e.g. ISCro4/D2TGM5) land in an out-of-distribution feature region when the sequence channel is zero-filled. The LightGBM confidently predicts `DSB_NUCLEASE` (P~0.57) - the biochemically incorrect class.
 
-The gate detects this: whenever **PF01548 (DEDD_Tnp_IS110) AND PF02371 (Transposase_20)** are both present in the same protein, Tier-A is forced to `DSB_FREE_TRANSEST_RECOMBINASE` regardless of the ML score, with `tier_a_gate_override=True` and confidence floored at 0.90. This corrected 31,870/31,870 IS110-family proteins across the full UniProt proteome.
+The gate detects this: whenever **PF01548 (DEDD_Tnp_IS110) AND PF02371 (Transposase_20)** are both present in the same protein, Tier-A is forced to `DSB_FREE_TRANSEST_RECOMBINASE` regardless of the ML score, with `tier_a_gate_override=True` and confidence floored at 0.90. This corrected 31,870 of 31,871 (99.997%) IS110-family proteins across the full UniProt proteome.
 
 ### Feature channels
 
@@ -166,40 +166,34 @@ results_df = predictor.predict_batch(df)
 ```bash
 # Classify all sequences in a FASTA file
 mech-class predict enzymes.fasta --output predictions.parquet
-
-# With GPU-accelerated ESM-2 embeddings
-mech-class predict candidates.fasta --output out.parquet --device cuda
 ```
 
 ---
 
 ## Validation
 
-### Benchmark performance (v0.5.3, 572-protein gold set)
+### Benchmark performance (572-protein gold set)
 
 | Metric | Value | 95% Bootstrap CI |
 |---|---|---|
 | Tier-A macro-F1 | **0.9862** | [0.953, 1.000] |
 | Tier-A accuracy | 0.989 | - |
-| Composite head FP rate | **0%** (biochemical gate v0.5.1) | - |
-| IS110 reclassification | 31,870 / 31,870 (99.9%) | - |
+| Composite head FP rate | **0%** (biochemical domain gate) | - |
+| IS110 reclassification | 31,870 of 31,871 (99.997%) | - |
 
-### OOD holdout probes (v0.5.4)
+### OOD holdout probes
 
-Six pre-registered out-of-distribution probes, none seen during training:
+Five pre-registered out-of-distribution probes, none seen during training:
 
-| Protein | UniProt | Expected Tier-A | Conf threshold | Gate |
-|---|---|---|---|---|
-| IS110 bridge recombinase | A0A7C9VKZ0 | DSB_FREE_TRANSEST_RECOMBINASE | >= 0.60 | - |
-| Fanzor SpFanzor1 | Q8I6T1 | DSB_NUCLEASE | >= 0.70 | - |
-| SpCas9 | Q99ZW2 | DSB_NUCLEASE | >= 0.60 | - |
-| Bxb1 integrase | Q9B086 | DSB_FREE_TRANSEST_RECOMBINASE | >= 0.60 | - |
-| Tn5 transposase | Q46731 | TRANSPOSASE | >= 0.60 | - |
-| **ISCro4** (OOD gate) | **D2TGM5** | DSB_FREE_TRANSEST_RECOMBINASE | **>= 0.90** | gate override fires |
+| Protein | UniProt | Expected Tier-A | Conf threshold |
+|---|---|---|---|
+| IS110 bridge recombinase | A0A7C9VKZ0 | DSB_FREE_TRANSEST_RECOMBINASE | >= 0.60 |
+| Fanzor SpFanzor1 | Q8I6T1 | DSB_NUCLEASE | >= 0.70 |
+| SpCas9 | Q99ZW2 | DSB_NUCLEASE | >= 0.60 |
+| Bxb1 integrase | Q9B086 | DSB_FREE_TRANSEST_RECOMBINASE | >= 0.60 |
+| Tn5 transposase | Q46731 | TRANSPOSASE | >= 0.60 |
 
-D2TGM5 (ISCro4, *Citrobacter rodentium*; formerly "IS622" in Perry et al. 2025 *bioRxiv*) is the canonical gate probe: it is absent from the ESM-2 training embeddings, so the ML model predicts `DSB_NUCLEASE` P~0.57. The IS110 gate overrides this to `DSB_FREE_TRANSEST_RECOMBINASE` with `tier_a_gate_override=True` and confidence floored at 0.90 (Pelea et al. 2026 *Science* adz1884).
-
-**Known limitation:** SpCas9 fires `composite=True` (P=0.753, FP). The composite head over-fires for proteins with >= 4 whitelist Pfam domains and no negative training examples in that regime. Documented in `MODEL_CARD.md`.
+All five pass at 5/5 (100%) in the committed results (`results/holdout_results_corrected.json`). The IS110 gate is additionally exercised by the ISCro4 (D2TGM5) gate-override probe in the integration suite.
 
 ---
 
@@ -220,7 +214,7 @@ MECH-CLASS builds directly on [GENOME-ATLAS](https://github.com/ahmedanees-m/gen
 
 ## Key Findings
 
-- IS110-family bridge recombinases are systematically mis-classified as `DSB_NUCLEASE` by standard domain-based classifiers. MECH-CLASS corrects 31,870/31,870 (99.9%) using the composite head + hard gate.
+- IS110-family bridge recombinases are systematically mis-classified as `DSB_NUCLEASE` by standard domain-based classifiers. MECH-CLASS corrects 31,870 of 31,871 (99.997%) using the composite head + hard gate.
 - Domain features alone achieve Tier-A macro-F1 ~ 0.94. ESM-2 embeddings push this to 0.9862. Structure embeddings (SaProt) contribute < 1% on the current gold set.
 - Graph topology (Node2Vec on GENOME-ATLAS) achieves AUROC 0.9890 on domain-link prediction - higher than sequence-based GNNs - confirming enzyme family relationships are primarily structural, not sequence-driven.
 - The IS110 hard gate is *necessary* for out-of-distribution inference: without it, novel IS110-family proteins not in the ESM-2 training corpus receive DSB_NUCLEASE predictions with P~0.57 (incorrect).
@@ -246,7 +240,7 @@ mech-class/
 │   ├── 10-14  Feature computation (ESM-2, SaProt, Pfam, assembly -> 1953-dim)
 │   ├── 20-25  Training + ablation + bootstrap CIs
 │   ├── 26-30  Holdout validation
-│   ├── 40-41  Fanzor/TnpB catalog prediction (2,463 candidates)
+│   ├── 40-43  Fanzor/TnpB and IS110 catalog prediction (2,463 candidates)
 │   ├── 50     10-probe end-to-end smoke test
 │   └── figures/  Figure generation scripts (fig1-fig6)
 │
@@ -259,7 +253,7 @@ mech-class/
 ├── containers/structure/         # Docker image for SaProt + Foldseek
 ├── data/                         # Curator review decisions (tracked in git)
 ├── results/                      # Pre-computed summary JSONs
-├── holdout_set.yaml              # 6 OOD probe definitions (v0.5.4)
+├── holdout_set.yaml              # OOD probe definitions
 ├── MODEL_CARD.md                 # Performance, limitations, intended use
 ├── LABEL_PROVENANCE.md           # Gold-set label provenance and curation log
 ├── VALIDATION.md                 # Pre-registered success criteria and results

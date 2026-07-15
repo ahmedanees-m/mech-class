@@ -1,6 +1,6 @@
 # MECH-CLASS Model Card
 
-**Model:** MECH-CLASS v0.5.3
+**Model:** MECH-CLASS v0.5.4
 **Type:** Two-tier mechanism classifier (LightGBM + biochemically-gated composite head)
 **Task:** Predict the catalytic mechanism of DNA-modifying enzymes from sequence + structure
 **Package:** `pip install mech-class`
@@ -30,17 +30,17 @@ decision-making without independent experimental validation.
 | Tier-B classifiers | Separate LightGBM per Tier-A class |
 | Composite head | Biochemical gate (PF01548 and PF02371) + binary LightGBM confidence |
 | Feature channels | F_seq (640d), F_struct (1280d), F_domain (26d), F_active_site (7d) |
-| F_seq source | ESM-2 150M mean-pool (from GENOME-ATLAS v0.7.1, pinned; see pyproject.toml) |
+| F_seq source | ESM-2 150M mean-pool (from GENOME-ATLAS, genome-atlas>=0.7.2 pinned; see pyproject.toml) |
 | F_struct source | SaProt 650M mean-pool (AlphaFold structure + Foldseek SA-tokens) |
 | pLDDT gate | F_struct and F_active_site zero-filled when mean active-site pLDDT < 70 |
 
-### Tier-A IS110 hard gate (v0.5.2)
+### Tier-A IS110 hard gate
 
-IS110-family bridge recombinases (IS621, IS110, ISDra2, etc.) were misclassified as
+IS110-family bridge recombinases (IS621, IS110, ISDra2, etc.) were classified as
 DSB_NUCLEASE when scored without a pre-computed ESM-2 embedding (domain-only inference
-path). Root cause: the LightGBM Tier-A model was trained where all 14 IS110 training
-proteins had real ESM-2 embeddings; at inference time (F_seq zero-filled), the feature
-vector is out-of-distribution and the model incorrectly outputs DSB_NUCLEASE.
+path). The Tier-A model was trained on IS110 proteins that all carried real ESM-2
+embeddings, so at inference time (F_seq zero-filled) the feature vector is
+out-of-distribution and the model outputs DSB_NUCLEASE.
 
 Fix: same pattern as composite gate. If PF01548 (DEDD_Tnp_IS110) AND PF02371
 (Transposase_20) are both present, `tier_a` is forced to `DSB_FREE_TRANSEST_RECOMBINASE`.
@@ -51,11 +51,11 @@ IS110 proteins with real ESM-2 embeddings (all 14 training examples, holdout A0A
 score DSB_FREE correctly without the gate; the gate exists only for the OOD domain-only
 path. CV F1 metrics and holdout results are unchanged.
 
-Canonical OOD gate probe (v0.5.3): **ISCro4 (D2TGM5**, Citrobacter rodentium ICC168; formerly "IS622" in Perry 2025 *bioRxiv*).
+Canonical OOD gate probe: **ISCro4** (D2TGM5, Citrobacter rodentium ICC168; formerly "IS622" in Perry 2025 *bioRxiv*).
 Not in training set; PF01548 + PF02371 -> gate fires; `DSB_FREE_TRANSEST_RECOMBINASE`,
 `tier_a_gate_override=True`, conf = 0.90. Sources: Pelea 2026 *Science* adz1884; Perry 2025 bioRxiv 2025.05.14.653916.
 
-### Composite head design (v0.5.1)
+### Composite head design
 
 The composite architecture flag uses a **two-layer decision**:
 
@@ -85,7 +85,7 @@ the ML head calibrates confidence, not the detection logic.
 - **Full provenance:** see [LABEL_PROVENANCE.md](LABEL_PROVENANCE.md)
 - **Holdout probes:** IS110 (A0A7C9VKZ0), Fanzor (Q8I6T1), SpCas9 (Q99ZW2),
   Bxb1 (Q9B086, corrected from Q8VVR2), Tn5 (Q46731, corrected from P00509),
-  **ISCro4 (D2TGM5, v0.5.3 gate probe)** - all absent from training.
+  **ISCro4 (D2TGM5, gate probe)** - all absent from training.
   Cre (P06956) was intended as a composite evaluation probe but was found to be
   in the training set; it cannot serve as an OOD hold-out.
   See [LABEL_PROVENANCE.md Data Pipeline Corrections](LABEL_PROVENANCE.md).
@@ -104,7 +104,7 @@ the ML head calibrates confidence, not the detection logic.
 | Composite head CV AUROC | **0.9922** | - |
 | Composite head CV FP rate | **0.0** | - |
 
-### Tier-A hold-out evaluation (6 OOD probes + 1 in-distribution sanity check)
+### Tier-A hold-out evaluation (5 OOD probes + 1 in-distribution sanity check)
 
 | Probe | Accession | Tier-A Predicted | Conf | Gate override | Pre-reg gate |
 |---|---|---|---|---|---|
@@ -113,11 +113,12 @@ the ML head calibrates confidence, not the detection logic.
 | SpCas9 | Q99ZW2 | DSB_NUCLEASE | 1.000 | No | **PASS** (>=0.6) |
 | Bxb1 | Q9B086 | DSB_FREE_TRANSEST_RECOMBINASE | 0.966 | No | **PASS** (>=0.6) |
 | Tn5 | Q46731 | TRANSPOSASE | 0.869 | No | **PASS** (>=0.6) |
-| ISCro4 | D2TGM5 | DSB_FREE_TRANSEST_RECOMBINASE | >=0.90 | **Yes** (OOD gate) | **PASS** (>=0.9) |
 | Cre | P06956 | DSB_FREE_TRANSEST_RECOMBINASE | 0.9999 | No | In-distribution - not evaluated |
 
-**OOD Tier-A accuracy: 6/6 (100%).** Pre-registration gate passed for all 6 OOD probes.
-D2TGM5 (ISCro4) is the canonical gate probe: `tier_a_gate_override=True` (v0.5.2 gate fires).
+**OOD Tier-A accuracy: 5/5 (100%)** across the committed hold-out results
+(`results/holdout_results_corrected.json`). The ISCro4 (D2TGM5) gate-override
+probe is validated separately by the integration test
+`test_iscro4_tier_a_gate_override` (`tier_a_gate_override=True`, conf >= 0.90).
 
 ### Composite head hold-out evaluation (pre-registered criterion: FP rate <= 10%)
 
@@ -134,13 +135,13 @@ D2TGM5 (ISCro4) is the canonical gate probe: `tier_a_gate_override=True` (v0.5.2
 
 #### SpCas9 - the key case
 
-SpCas9 (Q99ZW2) has five Cas9-specific Pfam domains (PF16593, PF16595, PF16592, PF22702,
-PF13395) and carries neither PF01548 nor PF02371. The biochemical gate blocks the composite
-call at source. The ML head's raw output is 0.753 (it would have been a FP under a pure
-ML-only design), but the gate overrides this to `composite=False, composite_prob=0.0`.
+SpCas9 (Q99ZW2) carries six Cas9 whitelist Pfam domains (PF13395, PF18541, PF16595,
+PF18516, PF16592, PF16593) and neither PF01548 nor PF02371. The domain gate blocks the
+composite call at source: the ML head's raw output is 0.753, but the gate forces
+`composite=False, composite_prob=0.0`.
 
-The raw ML score is preserved in `ml_composite_prob_raw` in `holdout_results.json` for
-transparency. This documents the v0.5.0 -> v0.5.1 correction and provides full audit trail.
+The per-probe results, including the raw ML score, are recorded in
+`results/holdout_results_corrected.json`.
 
 **Note on Cre:** P06956 is IN TRAINING (row 8658, DSB_FREE / B1_Site_Specific_Recombinase,
 424 PF00589 proteins in training). It cannot serve as an OOD holdout. Its in-distribution
@@ -213,7 +214,8 @@ See [UPDATE_STRATEGY.md](UPDATE_STRATEGY.md). Model is versioned with semantic v
 | v0.5.0 | 2026-05-07 | Initial release. Composite head: ML-only, FP rate 25% (SpCas9). |
 | v0.5.1 | 2026-05-11 | Add composite biochemical hard gate (PF01548 and PF02371). Composite FP rate -> 0%. |
 | v0.5.2 | 2026-05-22 | Add Tier-A IS110 hard gate. Fixes IS621 DSB_NUCLEASE misclassification in domain-only path. Pin genome-atlas <0.7.0. |
-| v0.5.3 | 2026-05-23 | Add ISCro4/D2TGM5 as 6th OOD holdout probe. Bump genome-atlas pin >=0.7.1,<0.8.0 (SIMILAR_TO restored; ISCro4 in atlas). |
+| v0.5.3 | 2026-05-23 | Add ISCro4/D2TGM5 gate-override holdout probe and test. Bump genome-atlas pin >=0.7.1,<0.8.0 (SIMILAR_TO restored; ISCro4 in atlas). |
+| v0.5.4 | 2026-05-25 | Canonical ISCro4 naming (D2TGM5). Bump genome-atlas pin >=0.7.2,<0.8.0. |
 
 ---
 

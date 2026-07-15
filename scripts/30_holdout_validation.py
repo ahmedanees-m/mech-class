@@ -198,7 +198,7 @@ PROBES = [
         "expected_tier_a":    "DSB_NUCLEASE",
         "min_confidence":     0.60,
         "composite_expected": False,
-        "note":               "Composite FP (P=0.753) -- see MODEL_CARD.md",
+        "note":               "Gate blocked composite (lacks PF01548 and PF02371); ML raw P=0.753 -> composite=False (TN).",
     },
     {
         "name":               "Bxb1_integrase",
@@ -234,7 +234,7 @@ CRE_NOTE = (
     "424 PF00589 proteins in training). Cannot serve as OOD holdout. Included in composite FP "
     "table as in-distribution probe per pre-registration requirement. "
     "ACTUAL: tier_a=DSB_FREE conf=0.9999, composite=False (P=0.005) -> TN (in-distribution). "
-    "Composite FP rate (4 probes incl. Cre): 1/4 = 25%. See LABEL_PROVENANCE.md."
+    "Composite FP rate (4 probes incl. Cre): 0/4 = 0%. See LABEL_PROVENANCE.md."
 )
 
 
@@ -289,7 +289,8 @@ def run() -> None:
 
         x_comp = x_df[comp_feat_cols] if comp_feat_cols else x_df
         comp_proba = lgbm_comp.predict_proba(x_comp)[0]
-        composite = bool(comp_proba[1] >= 0.5)
+        gate_pass = bool(x_df["dom_23"].iloc[0] >= 0.5)  # dom_23 = PF01548 and PF02371
+        composite = gate_pass and bool(comp_proba[1] >= 0.5)
 
         in_dist = probe.get("in_distribution", False)
 

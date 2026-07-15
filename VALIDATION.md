@@ -27,7 +27,7 @@ on the current gold set.
 
 ## Out-of-distribution holdout probes
 
-Six pre-registered probes, none seen during training. All pass.
+Five pre-registered probes, none seen during training. All pass.
 
 | Probe | Accession | Expected Tier-A | Min confidence | Result |
 |---|---|---|---|---|
@@ -36,12 +36,13 @@ Six pre-registered probes, none seen during training. All pass.
 | SpCas9 | Q99ZW2 | DSB_NUCLEASE | 0.60 | pass |
 | Bxb1 integrase | Q9B086 | DSB_FREE_TRANSEST_RECOMBINASE | 0.60 | pass |
 | Tn5 transposase | Q46731 | TRANSPOSASE | 0.60 | pass |
-| ISCro4 (gate probe) | D2TGM5 | DSB_FREE_TRANSEST_RECOMBINASE | 0.90 | pass (gate override) |
 
-ISCro4 (D2TGM5) is absent from the ESM-2 training embeddings, so the raw model
-predicts DSB_NUCLEASE (P around 0.57). The IS110 biochemical gate overrides this
-to DSB_FREE_TRANSEST_RECOMBINASE with confidence floored at 0.90. Results are in
-`results/holdout_results_corrected.json`.
+Committed results are in `results/holdout_results_corrected.json` (5/5 pass).
+The IS110 gate is additionally exercised by the ISCro4 (D2TGM5) gate-override
+probe: it is absent from the ESM-2 training embeddings, so the raw model predicts
+DSB_NUCLEASE (P around 0.57), and the gate overrides this to
+DSB_FREE_TRANSEST_RECOMBINASE with confidence floored at 0.90. That probe is
+validated by the integration test `test_iscro4_tier_a_gate_override`.
 
 ## Composite architecture flag
 

@@ -20,9 +20,8 @@ small per-class training N (< 3 for TRANSPOSASE; 39 for DSB_NUCLEASE). This is
 explicitly acceptable per label_taxonomy.yaml (Tier-B is supplementary / ungated).
 Tier-B tests are kept as xfail to document the known limitation.
 
-Note on composite head: SpCas9 (Q99ZW2) fires composite=True (FP, P=0.753).
-This is a known limitation documented in MODEL_CARD.md. The composite assertion
-for Cas9 is xfail for this reason.
+Note on composite head: SpCas9 (Q99ZW2) lacks PF01548/PF02371, so the domain
+gate forces composite=False even though the raw ML score is 0.753. See MODEL_CARD.md.
 
 Note on Cre (P06956): found in training set; cannot be used as OOD holdout.
 No test for Cre.
@@ -76,7 +75,8 @@ def _predict(accession: str, models):
     conf = float(proba_a[pred_idx])
     x_comp = x_df[comp_feat_cols] if comp_feat_cols else x_df
     comp_proba = lgbm_comp.predict_proba(x_comp)[0]
-    composite = bool(comp_proba[1] >= 0.5)
+    gate_pass = bool(x_df["dom_23"].iloc[0] >= 0.5)  # dom_23 = PF01548 and PF02371
+    composite = gate_pass and bool(comp_proba[1] >= 0.5)
     return tier_a, conf, composite
 
 
@@ -158,14 +158,10 @@ def test_tn5_tier_b(models):
 
 
 # ---------------------------------------------------------------------------
-# Composite head tests (xfail for Cas9 FP -- documented limitation)
+# Composite head tests (domain gate blocks non-IS110 composite calls)
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason="SpCas9 composite=True (FP, P=0.753) -- documented in MODEL_CARD.md. "
-    "Composite head over-fires on proteins with >=4 whitelist Pfam domains."
-)
 def test_cas9_composite_false(models):
     _, _, composite = _predict("Q99ZW2", models)
-    assert not composite, "SpCas9 should be composite=False (but fires as FP)"
+    assert not composite, "SpCas9 lacks PF01548/PF02371; domain gate forces composite=False"

@@ -1,11 +1,9 @@
 """Diagnostic: SpCas9 composite head raw probability check.
 
-Resolves the table vs. analysis text contradiction for Q99ZW2 (SpCas9):
-  - Table printed composite=False
-  - Analysis text said composite=True (FP)
-
-Loads holdout_features.parquet, finds composite model, re-runs predict_proba
-on Q99ZW2 row, and reports the ground truth.
+Loads holdout_features.parquet, finds the composite model, re-runs predict_proba
+on the Q99ZW2 (SpCas9) row, and reports the raw composite probability. SpCas9
+carries neither PF01548 nor PF02371, so the shipped domain gate forces
+composite=False regardless of this raw score.
 
 Run via:
     docker run --rm \\
@@ -143,11 +141,10 @@ def _run_composite(model, X):
         print(f"  composite_prob: {proba[1]:.6f}" if len(proba) > 1 else f"  prob: {proba[0]:.6f}")
         flag = (proba[1] > 0.5) if len(proba) > 1 else bool(pred)
         if flag:
-            print("  -> composite = TRUE  (genuine FALSE POSITIVE - model over-fires)")
-            print("    Note: This means the analysis text was correct; table was wrong.")
-            print("    FP rate on holdout = 1/4 DSB_NUCLEASE probes")
+            print("  -> raw composite = TRUE (ML score >= 0.5)")
+            print("    SpCas9 lacks PF01548/PF02371, so the domain gate forces composite=False.")
         else:
-            print("  -> composite = FALSE  (correct; table was right; analysis text was wrong)")
+            print("  -> raw composite = FALSE")
     except Exception as e:
         print(f"  [ERROR] {e}")
         try:

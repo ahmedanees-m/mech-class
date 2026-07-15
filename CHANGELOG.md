@@ -13,8 +13,8 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   all files (`holdout_set.yaml`, `holdout_results.json`, `test_predictor_api.py`).
   Canonical name per UniProt D2TGM5 + Pelea 2026 *Science* adz1884. "IS622" was a
   deprecated preprint label (Perry 2025 *bioRxiv* 2025.05.14.653916); retained in
-  `aliases` fields for backward compatibility. 6/6 OOD holdout still passes - no model
-  behaviour change, rename only.
+  `aliases` fields for backward compatibility. 5/5 committed OOD holdout still passes - no
+  model behaviour change, rename only.
 - **`genome-atlas` pin bumped** (`pyproject.toml`). `atlas` optional extra updated from
   `>=0.7.1,<0.8.0` to `>=0.7.2,<0.8.0`. genome-atlas v0.7.2 adds canonical ISCro4
   naming (was IS622) with alias-resolution and `load_systems()` / `resolve_system_name()`
@@ -49,11 +49,11 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [0.5.2] - 2026-05-22
 
 ### Fixed
-- **CRITICAL: Tier-A IS110 hard gate** (`api.py`). IS110-family bridge recombinases
-  (e.g. IS621) were misclassified as DSB_NUCLEASE when scored at inference time without
-  a pre-computed ESM-2 embedding (domain-only path). Root cause: the LightGBM Tier-A
-  model was trained where all 14 IS110 proteins had real ESM-2 embeddings; a zero-seq
-  + dom_4/dom_5 feature vector is OOD and the model incorrectly fires DSB_NUCLEASE.
+- **Tier-A IS110 hard gate** (`api.py`). IS110-family bridge recombinases
+  (e.g. IS621) were classified as DSB_NUCLEASE when scored at inference time without
+  a pre-computed ESM-2 embedding (domain-only path): the Tier-A model was trained on
+  IS110 proteins that all carried real ESM-2 embeddings, so a zero-seq domain vector is
+  out-of-distribution and the model fires DSB_NUCLEASE.
   Fix: biochemical hard gate - if PF01548 (DEDD_Tnp_IS110) AND PF02371 (Transposase_20)
   are both present, `tier_a` is forced to `DSB_FREE_TRANSEST_RECOMBINASE` regardless of
   the ML head output. `tier_a_gate_override: bool` added to `Prediction` for audit trail.
@@ -70,7 +70,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Composite head FP gate** (`api.py`). SpCas9 (Q99ZW2) triggered `composite=True`
   at P=0.753 under the pure ML head. Pre-registered <=10% FP criterion: FAIL (25%).
   Fix: biochemical hard gate requiring PF01548 AND PF02371 both present; composite forced
-  False otherwise. `ml_composite_prob_raw` field added for audit trail. FP rate: 0/4 = 0%.
+  False otherwise. FP rate: 0/4 = 0% (see results/holdout_results_corrected.json).
   Pre-registered criterion: PASS.
 
 ## [0.5.0] - 2026-04-30

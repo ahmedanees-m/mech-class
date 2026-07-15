@@ -1,8 +1,9 @@
-"""Pfam whitelist v1.2.0 from genome-atlas GENOME-ATLAS - as evidence source.
+"""Pfam labeling whitelist from GENOME-ATLAS, used as an evidence source.
 
-The 18 primary Pfam families from the GENOME-ATLAS corrected whitelist each carry a
-verified mechanism_bucket annotation. This provides Pfam-level evidence (weight 0.6)
-for any protein whose sequence hits one of these families.
+The 18 Pfam families in the GENOME-ATLAS labeling whitelist each carry a verified
+mechanism_bucket annotation. This provides Pfam-level evidence (weight 0.6) for any
+protein whose sequence hits one of these families. The 23-family feature whitelist
+used by the F_domain channel (mech_class/features/domain.py) is a separate, larger set.
 """
 
 from __future__ import annotations
